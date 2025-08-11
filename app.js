@@ -3,6 +3,7 @@ const app = express();
 const http = require("http");
 const socketio = require("socket.io");
 const path = require("path");
+
 const server = http.createServer(app);
 const io = socketio(server);
 
@@ -70,6 +71,13 @@ app.get("/", function (req, res) {
   res.render("index");
 });
 
-server.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+// Export both app and server so Vercel can import them
+module.exports = { app, server };
+
+// Only start listening if run directly (local dev)
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
