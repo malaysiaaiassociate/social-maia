@@ -5,7 +5,15 @@ const socketio = require("socket.io");
 const path = require("path");
 
 const server = http.createServer(app);
-const io = socketio(server);
+
+// Force Socket.IO to use polling only (no WebSockets)
+const io = socketio(server, {
+  transports: ["polling"],
+  cors: {
+    origin: "*", // allow all origins (you can restrict this)
+    methods: ["GET", "POST"]
+  }
+});
 
 app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
@@ -39,7 +47,6 @@ io.on("connection", function (socket) {
       `Location received from ${displayName}: ${data.latitude}, ${data.longitude}`
     );
     
-    // Store user's location data
     connectedUsers.set(socket.id, {
       name: socket.userName,
       location: { latitude: data.latitude, longitude: data.longitude }
@@ -59,10 +66,7 @@ io.on("connection", function (socket) {
   socket.on("disconnect", function () {
     const displayName = socket.userName || socket.id;
     console.log(`User disconnected: ${displayName} (${socket.id})`);
-    
-    // Remove user from connected users map
     connectedUsers.delete(socket.id);
-    
     io.emit("user-disconnected", socket.id);
   });
 });
@@ -71,13 +75,13 @@ app.get("/", function (req, res) {
   res.render("index");
 });
 
-// Export both app and server so Vercel can import them
+// Export for Vercel serverless function
 module.exports = { app, server };
 
-// Only start listening if run directly (local dev)
+// Local development mode
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
   });
 }
