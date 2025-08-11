@@ -6,11 +6,11 @@ const path = require("path");
 const app = express();
 const server = http.createServer(app);
 
-// Force Socket.IO to use polling only (no WebSockets) for Vercel compatibility
+// Force Socket.IO to use polling only for Vercel compatibility
 const io = socketio(server, {
   transports: ["polling"],
   cors: {
-    origin: "*", // Allow all origins (change if needed)
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -28,7 +28,7 @@ io.on("connection", (socket) => {
     socket.userName = data.name;
     console.log(`User ${socket.id} set name to: ${data.name}`);
 
-    // Send existing users' locations to the newly named user
+    // Send existing users' locations to the new user
     connectedUsers.forEach((userData, userId) => {
       if (userId !== socket.id && userData.location) {
         socket.emit("receive-location", {
@@ -71,10 +71,10 @@ app.get("/", (req, res) => {
   res.render("index");
 });
 
-// Export app & server for Vercel serverless
+// Export app & server for Vercel
 module.exports = { app, server };
 
-// Local development mode
+// Local development
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
