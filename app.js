@@ -1,16 +1,16 @@
 const express = require("express");
-const app = express();
 const http = require("http");
 const socketio = require("socket.io");
 const path = require("path");
 
+const app = express();
 const server = http.createServer(app);
 
-// Force Socket.IO to use polling only (no WebSockets)
+// Force Socket.IO to use polling only (no WebSockets) for Vercel compatibility
 const io = socketio(server, {
   transports: ["polling"],
   cors: {
-    origin: "*", // allow all origins (you can restrict this)
+    origin: "*", // Allow all origins (change if needed)
     methods: ["GET", "POST"]
   }
 });
@@ -21,13 +21,13 @@ app.use(express.static(path.join(__dirname, "public")));
 // Store connected users and their latest location data
 const connectedUsers = new Map();
 
-io.on("connection", function (socket) {
+io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
-  
-  socket.on("set-name", function (data) {
+
+  socket.on("set-name", (data) => {
     socket.userName = data.name;
     console.log(`User ${socket.id} set name to: ${data.name}`);
-    
+
     // Send existing users' locations to the newly named user
     connectedUsers.forEach((userData, userId) => {
       if (userId !== socket.id && userData.location) {
@@ -40,30 +40,26 @@ io.on("connection", function (socket) {
       }
     });
   });
-  
-  socket.on("send-location", function (data) {
+
+  socket.on("send-location", (data) => {
     const displayName = socket.userName || socket.id;
-    console.log(
-      `Location received from ${displayName}: ${data.latitude}, ${data.longitude}`
-    );
-    
+    console.log(`Location from ${displayName}: ${data.latitude}, ${data.longitude}`);
+
     connectedUsers.set(socket.id, {
       name: socket.userName,
       location: { latitude: data.latitude, longitude: data.longitude }
     });
-    
+
     io.emit("receive-location", { id: socket.id, name: socket.userName, ...data });
   });
 
-  socket.on("send-notification", function (data) {
+  socket.on("send-notification", (data) => {
     const displayName = socket.userName || socket.id;
-    console.log(
-      `Chat message received from ${displayName}: ${data.message}`
-    );
+    console.log(`Notification from ${displayName}: ${data.message}`);
     io.emit("receive-notification", { id: socket.id, name: socket.userName, ...data });
   });
 
-  socket.on("disconnect", function () {
+  socket.on("disconnect", () => {
     const displayName = socket.userName || socket.id;
     console.log(`User disconnected: ${displayName} (${socket.id})`);
     connectedUsers.delete(socket.id);
@@ -71,17 +67,17 @@ io.on("connection", function (socket) {
   });
 });
 
-app.get("/", function (req, res) {
+app.get("/", (req, res) => {
   res.render("index");
 });
 
-// Export for Vercel serverless function
+// Export app & server for Vercel serverless
 module.exports = { app, server };
 
 // Local development mode
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
   });
 }
