@@ -3,100 +3,121 @@ body {
   font-family: "Roboto", sans-serif;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  height: 100vh;
   background-color: #f0f2f5;
   color: #333;
 }
 
 header {
   width: 100%;
-  background-color: #007bff;
+  background-color: #000000;
   color: white;
   text-align: center;
-  padding: 1.5em 0;
+  padding: 0.8em 0;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-  font-size: 1.5em;
+  font-size: 1.2em;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+header h1 {
+  margin: 0;
   font-weight: bold;
 }
 
+header h1 .letter-m { color: white; }
+header h1 .letter-a1 { color: #4A90E2; }
+header h1 .letter-i { color: #4A90E2; }
+header h1 .letter-a2 { color: white; }
+header h1 .social { color: white; }
+
 #map {
-  width: 90%;
-  height: 60vh;
-  margin-bottom: 20px;
+  flex: 1;
+  width: 100%;
+  height: 100%;
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-#location-container {
-  width: 90%;
-  padding: 20px;
-  background-color: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-#location-container h2 {
-  margin-top: 0;
-  color: #007bff;
-  font-size: 1.5em;
-}
-
-#location-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#location-list li {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-  color: #555;
-  font-size: 1em;
-}
-
-#location-list li:last-child {
-  border-bottom: none;
 }
 
 @media (max-width: 768px) {
   header {
-    font-size: 1.2em;
-    padding: 1em 0;
+    font-size: 1em;
+    padding: 0.6em 0;
   }
 
-  #map,
-  #location-container {
+  #map {
     width: 95%;
-    margin-bottom: 15px;
-  }
-
-  #location-container h2 {
-    font-size: 1.3em;
-  }
-
-  #location-list li {
-    font-size: 0.9em;
   }
 }
 
 @media (max-width: 480px) {
   header {
-    font-size: 1em;
-    padding: 0.8em 0;
+    font-size: 0.9em;
+    padding: 0.5em 0;
   }
 
-  #map,
-  #location-container {
+  #map {
     width: 100%;
-    margin-bottom: 10px;
+  }
+}
+
+/* Custom chat popup styles */
+.leaflet-popup.chat-popup .leaflet-popup-content-wrapper {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.leaflet-popup.chat-popup .leaflet-popup-content {
+  margin: 8px 12px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+}
+
+.leaflet-popup.chat-popup .leaflet-popup-tip {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced visibility for zoomed-out views */
+.leaflet-popup.chat-popup {
+  z-index: 1000 !important;
+}
+
+.leaflet-popup.chat-popup .leaflet-popup-content-wrapper {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform-origin: center;
+  transition: transform 0.3s ease;
+}
+
+/* Ensure popups stay visible during map interactions */
+.leaflet-popup.chat-popup.leaflet-popup-closing {
+  animation: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  .leaflet-popup.chat-popup .leaflet-popup-content-wrapper {
+    min-width: 140px;
   }
 
-  #location-container h2 {
-    font-size: 1.2em;
+  #messageHistoryBox {
+    width: 200px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    right: 10px !important;
+    font-size: 12px !important;
   }
+}
 
-  #location-list li {
-    font-size: 0.8em;
+@media screen and (max-width: 480px) {
+  #messageHistoryBox {
+    width: 180px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    right: 5px !important;
+    font-size: 11px !important;
+    max-height: 120px !important;
   }
 }
