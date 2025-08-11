@@ -1,7 +1,7 @@
 const { server } = require('../app');
 
 module.exports = (req, res) => {
-  // Allow CORS for Socket.IO polling and WebSocket upgrade
+  // Allow CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,8 +10,7 @@ module.exports = (req, res) => {
     return res.status(200).end();
   }
 
-  // On Vercel, avoid calling server.listen() for every request
-  // Only start the server if it hasn’t been started yet
+  // Start server only once in serverless
   if (!server.listening) {
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
@@ -19,12 +18,6 @@ module.exports = (req, res) => {
     });
   }
 
-  // Support WebSocket upgrade requests
-  if (req.url.startsWith('/socket.io')) {
-    // Let Socket.IO handle upgrade/polling
-    return server.emit('request', req, res);
-  }
-
-  // Handle normal HTTP requests through Express
+  // Handle Socket.IO upgrade or HTTP requests
   return server.emit('request', req, res);
 };
