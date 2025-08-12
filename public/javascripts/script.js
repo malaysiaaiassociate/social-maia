@@ -132,10 +132,10 @@ osmLayer.addTo(map);
 
 // Create layer control
 const baseMaps = {
-  "OpenStreetMap": osmLayer,
+  "Normal": osmLayer,
   "Satellite": satelliteLayer,
-  "Dark Theme": darkLayer,
-  "Light Theme": lightLayer
+  "Dark Mode": darkLayer,
+  "Light Mode": lightLayer
 };
 
 L.control.layers(baseMaps).addTo(map);
@@ -587,7 +587,7 @@ const createMessageHistoryBox = () => {
     right: 20px;
     transform: translateY(-50%);
     width: 250px;
-    max-height: 150px;
+    max-height: 350px;
     background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
