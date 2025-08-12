@@ -11,17 +11,48 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Store connected users and their latest location data
 const connectedUsers = new Map();
+// Store active usernames (case-insensitive)
+const activeUsernames = new Set();
 
 io.on("connection", function (socket) {
   console.log(`User connected: ${socket.id}`);
   
   socket.on("set-name", function (data) {
-    socket.userName = data.name;
+    const requestedName = data.name.trim();
+    const requestedNameLower = requestedName.toLowerCase();
+    
+    // Check if username already exists (case-insensitive)
+    if (activeUsernames.has(requestedNameLower)) {
+      socket.emit("name-rejected", { 
+        reason: "Username already taken." 
+      });
+      return;
+    }
+    
+    // Check if username is too short or contains invalid characters
+    if (requestedName.length < 2) {
+      socket.emit("name-rejected", { 
+        reason: "Must at least 2 characters long." 
+      });
+      return;
+    }
+    
+    if (!/^[a-zA-Z0-9_-]+$/.test(requestedName)) {
+      socket.emit("name-rejected", { 
+        reason: "Username cannot contain space." 
+      });
+      return;
+    }
+    
+    // If we reach here, the username is valid
+    socket.userName = requestedName;
     socket.userGender = data.gender;
-    console.log(`User ${socket.id} set name to: ${data.name}, gender: ${data.gender}`);
+    activeUsernames.add(requestedNameLower);
+    
+    console.log(`User ${socket.id} set name to: ${requestedName}, gender: ${data.gender}`);
     
     // Broadcast user connection to all clients
-    io.emit("user-connected", { name: data.name, gender: data.gender });
+    io.emit("user-connected", { name: requestedName, gender: data.gender });
     
     // Send existing users' locations to the newly named user
     connectedUsers.forEach((userData, userId) => {
@@ -68,6 +99,8 @@ io.on("connection", function (socket) {
     // Broadcast user disconnection to all clients (only if user had a name)
     if (socket.userName) {
       io.emit("user-left", { name: socket.userName, gender: socket.userGender });
+      // Remove username from active set
+      activeUsernames.delete(socket.userName.toLowerCase());
     }
     
     // Remove user from connected users map
