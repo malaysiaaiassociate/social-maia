@@ -460,25 +460,11 @@ const createNameInputModal = () => {
   const handleNameSubmit = () => {
     const name = input.value.trim();
     if (name && userGender) {
-      userName = name;
-      socket.emit('set-name', { name: userName, gender: userGender }); // Pass gender to server
-
-      // Send location immediately if we already have it
-      if (currentLocation) {
-        console.log(`Sending location after name set: ${currentLocation.latitude}, ${currentLocation.longitude}`);
-        socket.emit("send-location", { 
-          latitude: currentLocation.latitude, 
-          longitude: currentLocation.longitude, 
-          name: userName,
-          gender: userGender // Include gender in the emitted data
-        });
-
-        lastSentLocation = { ...currentLocation };
-        lastLocationSentTime = Date.now();
-      }
-
-      document.body.removeChild(modal);
-      createNotificationInput();
+      // Temporarily disable the button to prevent multiple submissions
+      button.disabled = true;
+      button.textContent = 'Checking...';
+      
+      socket.emit('set-name', { name: name, gender: userGender }); // Pass gender to server
     } else {
       if (!name) {
         input.style.borderColor = '#ff4444';
@@ -500,9 +486,47 @@ const createNameInputModal = () => {
 
   input.addEventListener('input', () => {
     input.style.borderColor = '#ddd';
-    if (input.placeholder === 'Username is required!') {
+    if (input.placeholder === 'Username is required!' || input.placeholder.includes('taken') || input.placeholder.includes('characters') || input.placeholder.includes('contain')) {
       input.placeholder = 'Enter your username';
     }
+    // Re-enable button when user starts typing again
+    button.disabled = false;
+    button.textContent = 'Continue';
+  });
+
+  // Handle successful name acceptance from server
+  socket.on('user-connected', (data) => {
+    // If this is our own connection, proceed with the app
+    if (data.name === input.value.trim() && document.body.contains(modal)) {
+      userName = data.name;
+      userGender = data.gender;
+      
+      // Send location immediately if we already have it
+      if (currentLocation) {
+        console.log(`Sending location after name set: ${currentLocation.latitude}, ${currentLocation.longitude}`);
+        socket.emit("send-location", { 
+          latitude: currentLocation.latitude, 
+          longitude: currentLocation.longitude, 
+          name: userName,
+          gender: userGender
+        });
+
+        lastSentLocation = { ...currentLocation };
+        lastLocationSentTime = Date.now();
+      }
+
+      document.body.removeChild(modal);
+      createNotificationInput();
+    }
+  });
+
+  // Handle name rejection from server
+  socket.on('name-rejected', (data) => {
+    input.style.borderColor = '#ff4444';
+    input.placeholder = data.reason;
+    input.value = '';
+    button.disabled = false;
+    button.textContent = 'Continue';
   });
 
   modalContent.appendChild(title);
