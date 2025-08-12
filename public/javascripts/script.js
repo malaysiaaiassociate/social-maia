@@ -625,11 +625,20 @@ const updateMessageHistory = () => {
   const messagesToShow = recentMessages.slice(-10);
 
   messageBox.innerHTML = messagesToShow.map(msg => {
-    const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
-    return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
-      <strong style="color: #2c3e50;">${msg.name}:</strong> 
-      <span style="color: #34495e;">${msg.message}</span>
-    </div>`;
+    if (msg.isSystemMessage) {
+      // System messages (connection/disconnection) with different styling
+      const systemColor = msg.userGender === 'female' ? '#FF69B4' : '#007bff';
+      return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(128, 128, 128, 0.2); border-radius: 5px; border-left: 3px solid ${systemColor}; font-style: italic;">
+        <span style="color: #666; font-size: 12px;">${msg.message}</span>
+      </div>`;
+    } else {
+      // Regular chat messages
+      const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
+      return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
+        <strong style="color: #2c3e50;">${msg.name}:</strong> 
+        <span style="color: #34495e;">${msg.message}</span>
+      </div>`;
+    }
   }).join('');
 };
 
@@ -879,6 +888,54 @@ socket.on("receive-notification", (data) => {
 
       delete notificationTimeouts[userName];
     }, 8000);
+  }
+});
+
+socket.on("user-connected", (data) => {
+  const { name, gender } = data;
+  
+  // Don't show connection message for the current user
+  if (name !== userName) {
+    // Add connection message to recent messages history
+    recentMessages.push({
+      name: 'System',
+      message: `${name} connected`,
+      timestamp: Date.now(),
+      isSystemMessage: true,
+      userGender: gender
+    });
+
+    // Keep only the last 10 messages to prevent memory issues
+    if (recentMessages.length > 10) {
+      recentMessages.shift();
+    }
+
+    // Update the message history display
+    updateMessageHistory();
+  }
+});
+
+socket.on("user-left", (data) => {
+  const { name, gender } = data;
+  
+  // Don't show disconnection message for the current user
+  if (name !== userName) {
+    // Add disconnection message to recent messages history
+    recentMessages.push({
+      name: 'System',
+      message: `${name} disconnected`,
+      timestamp: Date.now(),
+      isSystemMessage: true,
+      userGender: gender
+    });
+
+    // Keep only the last 10 messages to prevent memory issues
+    if (recentMessages.length > 10) {
+      recentMessages.shift();
+    }
+
+    // Update the message history display
+    updateMessageHistory();
   }
 });
 
