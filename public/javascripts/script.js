@@ -619,16 +619,20 @@ const updateMessageHistory = () => {
 
   messageBox.style.display = 'block';
 
-  // Show the 5 most recent messages
+  // Show the 10 most recent messages
   const messagesToShow = recentMessages.slice(-10);
 
-  messageBox.innerHTML = messagesToShow.map(msg => {
+  const headerHtml = `<div style="text-align: center; font-weight: bold; color: #2c3e50; font-size: 14px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.1);">Feeds</div>`;
+  
+  const messagesHtml = messagesToShow.map(msg => {
     const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
     return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
       <strong style="color: #2c3e50;">${msg.name}:</strong> 
       <span style="color: #34495e;">${msg.message}</span>
     </div>`;
   }).join('');
+
+  messageBox.innerHTML = headerHtml + messagesHtml;
 };
 
 // Initialize message history box
