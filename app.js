@@ -39,7 +39,7 @@ io.on("connection", function (socket) {
     
     if (!/^[a-zA-Z0-9_-]+$/.test(requestedName)) {
       socket.emit("name-rejected", { 
-        reason: "Username cannot contain space." 
+        reason: "Username is invalid." 
       });
       return;
     }
