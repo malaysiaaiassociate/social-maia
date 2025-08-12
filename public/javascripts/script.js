@@ -108,23 +108,25 @@ if (navigator.geolocation) {
   );
 }
 
-const map = L.map("map").setView([0, 0], 16);
+const map = L.map("map", {
+  attributionControl: false
+}).setView([0, 0], 16);
 
 // Define different map layers
 const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "© OpenStreetMap contributors"
+  attribution: ""
 });
 
 const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-  attribution: "© Esri"
+  attribution: ""
 });
 
 const darkLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-  attribution: "© CartoDB"
+  attribution: ""
 });
 
 const lightLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  attribution: "© CartoDB"
+  attribution: ""
 });
 
 // Set default layer
@@ -587,7 +589,7 @@ const createMessageHistoryBox = () => {
     right: 20px;
     transform: translateY(-50%);
     width: 250px;
-    max-height: 350px;
+    max-height: 200px;
     background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -622,21 +624,13 @@ const updateMessageHistory = () => {
   // Show the 10 most recent messages
   const messagesToShow = recentMessages.slice(-10);
 
-  const headerHtml = `<div id="feedsHeader" style="position: sticky; top: 0; z-index: 10; text-align: center; font-weight: bold; color: #2c3e50; font-size: 14px; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); background: rgba(255, 255, 255, 0); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">Live Feeds</div>`;
-  
-  const messagesContainerHtml = `<div style="max-height: calc(100% - 50px); overflow-y: auto;">`;
-  
-  const messagesHtml = messagesToShow.map(msg => {
+  messageBox.innerHTML = messagesToShow.map(msg => {
     const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
     return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
       <strong style="color: #2c3e50;">${msg.name}:</strong> 
       <span style="color: #34495e;">${msg.message}</span>
     </div>`;
   }).join('');
-
-  const closingContainerHtml = `</div>`;
-
-  messageBox.innerHTML = headerHtml + messagesContainerHtml + messagesHtml + closingContainerHtml;
 };
 
 // Initialize message history box
