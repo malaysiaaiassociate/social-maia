@@ -2,6 +2,7 @@ const socket = io();
 
 let currentLocation = null;
 let userName = null;
+let userGender = null; // Added to store user's gender
 let gpsEnabled = false;
 let actualLocation = null;
 let storedFakeLocation = null;
@@ -46,7 +47,8 @@ if (navigator.geolocation) {
         socket.emit("send-location", { 
           latitude: currentLocation.latitude, 
           longitude: currentLocation.longitude, 
-          name: userName 
+          name: userName,
+          gender: userGender // Include gender in the emitted data
         });
 
         lastSentLocation = { ...currentLocation };
@@ -86,7 +88,8 @@ if (navigator.geolocation) {
         socket.emit("send-location", { 
           latitude: currentLocation.latitude, 
           longitude: currentLocation.longitude, 
-          name: userName 
+          name: userName,
+          gender: userGender // Include gender in the emitted data
         });
 
         // Update tracking variables
@@ -286,7 +289,8 @@ const createNotificationInput = () => {
         socket.emit("send-location", { 
           latitude: currentLocation.latitude, 
           longitude: currentLocation.longitude, 
-          name: userName 
+          name: userName,
+          gender: userGender // Include gender in the emitted data
         });
 
         // Update tracking variables
@@ -358,7 +362,7 @@ const createNameInputModal = () => {
   `;
 
   const subtitle = document.createElement('p');
-  subtitle.textContent = 'Please enter your username to continue:';
+  subtitle.textContent = 'Please enter your username and select your gender:';
   subtitle.style.cssText = `
     margin: 0 0 20px 0;
     color: #666;
@@ -378,6 +382,66 @@ const createNameInputModal = () => {
     box-sizing: border-box;
   `;
 
+  // Gender selection buttons
+  const genderButtonsContainer = document.createElement('div');
+  genderButtonsContainer.style.cssText = `
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+  `;
+
+  const maleButton = document.createElement('button');
+  maleButton.textContent = '♂ Male';
+  maleButton.style.cssText = `
+    padding: 10px 20px;
+    border: 2px solid #4A90E2;
+    background-color: #ffffff;
+    color: #4A90E2;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s, color 0.3s;
+  `;
+  maleButton.onmouseover = () => { maleButton.style.backgroundColor = '#4A90E2'; maleButton.style.color = 'white'; };
+  maleButton.onmouseout = () => { if (userGender !== 'male') { maleButton.style.backgroundColor = '#ffffff'; maleButton.style.color = '#4A90E2'; } };
+
+  const femaleButton = document.createElement('button');
+  femaleButton.textContent = '♀ Female';
+  femaleButton.style.cssText = `
+    padding: 10px 20px;
+    border: 2px solid #FF69B4;
+    background-color: #ffffff;
+    color: #FF69B4;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s, color 0.3s;
+  `;
+  femaleButton.onmouseover = () => { femaleButton.style.backgroundColor = '#FF69B4'; femaleButton.style.color = 'white'; };
+  femaleButton.onmouseout = () => { if (userGender !== 'female') { femaleButton.style.backgroundColor = '#ffffff'; femaleButton.style.color = '#FF69B4'; } };
+
+
+  maleButton.addEventListener('click', () => {
+    userGender = 'male';
+    maleButton.style.backgroundColor = '#4A90E2';
+    maleButton.style.color = 'white';
+    femaleButton.style.backgroundColor = '#ffffff';
+    femaleButton.style.color = '#FF69B4';
+  });
+
+  femaleButton.addEventListener('click', () => {
+    userGender = 'female';
+    femaleButton.style.backgroundColor = '#FF69B4';
+    femaleButton.style.color = 'white';
+    maleButton.style.backgroundColor = '#ffffff';
+    maleButton.style.color = '#4A90E2';
+  });
+
+  genderButtonsContainer.appendChild(maleButton);
+  genderButtonsContainer.appendChild(femaleButton);
+
+
   const button = document.createElement('button');
   button.textContent = 'Continue';
   button.style.cssText = `
@@ -393,9 +457,9 @@ const createNameInputModal = () => {
 
   const handleNameSubmit = () => {
     const name = input.value.trim();
-    if (name) {
+    if (name && userGender) {
       userName = name;
-      socket.emit('set-name', { name: userName });
+      socket.emit('set-name', { name: userName, gender: userGender }); // Pass gender to server
 
       // Send location immediately if we already have it
       if (currentLocation) {
@@ -403,7 +467,8 @@ const createNameInputModal = () => {
         socket.emit("send-location", { 
           latitude: currentLocation.latitude, 
           longitude: currentLocation.longitude, 
-          name: userName 
+          name: userName,
+          gender: userGender // Include gender in the emitted data
         });
 
         lastSentLocation = { ...currentLocation };
@@ -413,8 +478,14 @@ const createNameInputModal = () => {
       document.body.removeChild(modal);
       createNotificationInput();
     } else {
-      input.style.borderColor = '#ff4444';
-      input.placeholder = 'Username is required!';
+      if (!name) {
+        input.style.borderColor = '#ff4444';
+        input.placeholder = 'Username is required!';
+      }
+      if (!userGender) {
+        // Optionally add visual feedback for gender selection
+        alert('Please select your gender.');
+      }
     }
   };
 
@@ -435,6 +506,7 @@ const createNameInputModal = () => {
   modalContent.appendChild(title);
   modalContent.appendChild(subtitle);
   modalContent.appendChild(input);
+  modalContent.appendChild(genderButtonsContainer); // Add gender buttons
   modalContent.appendChild(button);
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
@@ -498,6 +570,8 @@ const shouldSendLocationUpdate = (newLocation) => {
 
 // Store last notification messages for each user
 const userLastMessages = {};
+// Store user gender information
+const userGenders = {};
 // Store notification timeouts for auto-hide
 const notificationTimeouts = {};
 // Store recent messages for the message history box
@@ -548,21 +622,34 @@ const updateMessageHistory = () => {
   // Show the 5 most recent messages
   const messagesToShow = recentMessages.slice(-5);
 
-  messageBox.innerHTML = messagesToShow.map(msg => 
-    `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid #007bff;">
+  messageBox.innerHTML = messagesToShow.map(msg => {
+    const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
+    return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
       <strong style="color: #2c3e50;">${msg.name}:</strong> 
       <span style="color: #34495e;">${msg.message}</span>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 };
 
 // Initialize message history box
 const messageHistoryBox = createMessageHistoryBox();
 
+// Function to determine marker color based on gender
+const getMarkerColor = (gender) => {
+  if (gender === 'male') return '#2196F3'; // Blue
+  if (gender === 'female') return '#FF69B4'; // Pink
+  return '#9E9E9E'; // Default Grey
+};
+
 socket.on("receive-location", (data) => {
-  const { id, latitude, longitude, message, name } = data;
+  const { id, latitude, longitude, message, name, gender } = data; // Added gender
   const userName = name || `User ${id}`;
   console.log(`Received location for ${userName}: ${latitude}, ${longitude}`);
+  
+  // Store gender information for this user
+  if (gender) {
+    userGenders[userName] = gender;
+  }
   map.setView([latitude, longitude]);
   const [newLat, newLng] = addOffset(latitude, longitude);
 
@@ -593,11 +680,12 @@ socket.on("receive-location", (data) => {
             <b style="color: white; font-size: 14px;">${userName}</b><br/>
             <span style="color: #f8f9fa; font-size: 12px; font-style: italic;">No messages yet</span>
           </div>`;
+          const noMsgPopupClassName = gender === 'female' ? 'chat-popup-female' : 'chat-popup';
           marker.bindPopup(noMessageContent, {
             closeButton: true,
             autoClose: true,
             closeOnClick: true,
-            className: 'chat-popup'
+            className: noMsgPopupClassName
           }).openPopup();
         }
       });
@@ -620,7 +708,8 @@ socket.on("receive-location", (data) => {
   }
 
   // Create new marker for this user (only when no marker exists)
-  const newMarker = L.marker([newLat, newLng]).addTo(markerClusterGroup);
+  const markerColor = getMarkerColor(gender); // Get color based on gender
+  const newMarker = L.marker([newLat, newLng], { icon: L.divIcon({className: 'user-marker', html: `<div style="background-color: ${markerColor}; border-radius: 50%; width: 20px; height: 20px; border: 2px solid white; box-shadow: 0 0 0 2px ${markerColor};"></div>`, iconSize: [20, 20], iconAnchor: [10, 10]}) }).addTo(markerClusterGroup);
 
   // Add click event to show last chat message (for all users)
   const addClickHandler = (marker, userName) => {
@@ -632,11 +721,12 @@ socket.on("receive-location", (data) => {
           <span style="color: #7f8c8d; font-size: 10px;">Last message:</span><br/>
           <span style="color: #34495e; font-size: 11px; background: #ecf0f1; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
         </div>`;
+        const clickPopupClassName = gender === 'female' ? 'chat-popup-female' : 'chat-popup';
         marker.bindPopup(lastMessageContent, {
           closeButton: true,
           autoClose: true,
           closeOnClick: true,
-          className: 'chat-popup'
+          className: clickPopupClassName
         }).openPopup();
       } else {
         const noMessageContent = `<div style="text-align: center; min-width: 100px;">
@@ -661,12 +751,15 @@ socket.on("receive-location", (data) => {
 });
 
 socket.on("receive-notification", (data) => {
-  const { id, latitude, longitude, message, name } = data;
+  const { id, latitude, longitude, message, name, gender } = data;
   const userName = name || `User ${id}`;
   console.log(`Received chat message from ${userName}: ${message}`);
 
-  // Store the last message for this user
+  // Store the last message for this user and gender info
   userLastMessages[userName] = message;
+  if (gender) {
+    userGenders[userName] = gender;
+  }
 
   // Add to recent messages history
   recentMessages.push({
@@ -704,14 +797,15 @@ socket.on("receive-notification", (data) => {
     // Temporarily disable click handler to prevent interference
     userMarkers[userName].off('click');
 
-    // Enhanced popup options for better visibility at all zoom levels
+    // Enhanced popup options for better visibility at all zoom levels with gender-based styling
+    const popupClassName = data.gender === 'female' ? 'chat-popup-female' : 'chat-popup';
     const popupOptions = {
       closeButton: true,
       autoClose: false,
       closeOnClick: false,
       closeOnEscapeKey: false,
       keepInView: true,
-      className: 'chat-popup',
+      className: popupClassName,
       maxWidth: isZoomedOut ? 120 : 100,
       autoPan: true,
       autoPanPadding: [20, 20],
@@ -754,11 +848,12 @@ socket.on("receive-notification", (data) => {
               <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'};">Last message:</span><br/>
               <span style="color: #34495e; font-size: ${isClickZoomedOut ? '13px' : '11px'}; background: #ecf0f1; padding: ${isClickZoomedOut ? '4px 8px' : '3px 6px'}; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
             </div>`;
+            const timeoutPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
             userMarkers[userName].bindPopup(lastMessageContent, {
               closeButton: true,
               autoClose: true,
               closeOnClick: true,
-              className: 'chat-popup',
+              className: timeoutPopupClassName,
               maxWidth: isClickZoomedOut ? 120 : 100,
               offset: [0, isClickZoomedOut ? -10 : -6]
             }).openPopup();
@@ -767,11 +862,12 @@ socket.on("receive-notification", (data) => {
               <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${userName}</b><br/>
               <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'}; font-style: italic;">No messages yet</span>
             </div>`;
+            const timeoutNoMsgPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
             userMarkers[userName].bindPopup(noMessageContent, {
               closeButton: true,
               autoClose: true,
               closeOnClick: true,
-              className: 'chat-popup',
+              className: timeoutNoMsgPopupClassName,
               maxWidth: isClickZoomedOut ? 120 : 100,
               offset: [0, isClickZoomedOut ? -10 : -6]
             }).openPopup();
