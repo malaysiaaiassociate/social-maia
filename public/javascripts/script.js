@@ -622,7 +622,9 @@ const updateMessageHistory = () => {
   // Show the 10 most recent messages
   const messagesToShow = recentMessages.slice(-10);
 
-  const headerHtml = `<div style="text-align: center; font-weight: bold; color: #2c3e50; font-size: 14px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.1);">Feeds</div>`;
+  const headerHtml = `<div id="feedsHeader" style="position: sticky; top: 0; z-index: 10; text-align: center; font-weight: bold; color: #2c3e50; font-size: 14px; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); background: rgba(255, 255, 255, 0); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">Live Feeds</div>`;
+  
+  const messagesContainerHtml = `<div style="max-height: calc(100% - 50px); overflow-y: auto;">`;
   
   const messagesHtml = messagesToShow.map(msg => {
     const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
@@ -632,7 +634,9 @@ const updateMessageHistory = () => {
     </div>`;
   }).join('');
 
-  messageBox.innerHTML = headerHtml + messagesHtml;
+  const closingContainerHtml = `</div>`;
+
+  messageBox.innerHTML = headerHtml + messagesContainerHtml + messagesHtml + closingContainerHtml;
 };
 
 // Initialize message history box
