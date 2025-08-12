@@ -20,6 +20,9 @@ io.on("connection", function (socket) {
     socket.userGender = data.gender;
     console.log(`User ${socket.id} set name to: ${data.name}, gender: ${data.gender}`);
     
+    // Broadcast user connection to all clients
+    io.emit("user-connected", { name: data.name, gender: data.gender });
+    
     // Send existing users' locations to the newly named user
     connectedUsers.forEach((userData, userId) => {
       if (userId !== socket.id && userData.location) {
@@ -61,6 +64,11 @@ io.on("connection", function (socket) {
   socket.on("disconnect", function () {
     const displayName = socket.userName || socket.id;
     console.log(`User disconnected: ${displayName} (${socket.id})`);
+    
+    // Broadcast user disconnection to all clients (only if user had a name)
+    if (socket.userName) {
+      io.emit("user-left", { name: socket.userName, gender: socket.userGender });
+    }
     
     // Remove user from connected users map
     connectedUsers.delete(socket.id);
