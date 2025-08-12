@@ -620,7 +620,7 @@ const updateMessageHistory = () => {
   messageBox.style.display = 'block';
 
   // Show the 5 most recent messages
-  const messagesToShow = recentMessages.slice(-5);
+  const messagesToShow = recentMessages.slice(-10);
 
   messageBox.innerHTML = messagesToShow.map(msg => {
     const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
