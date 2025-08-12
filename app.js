@@ -17,7 +17,8 @@ io.on("connection", function (socket) {
   
   socket.on("set-name", function (data) {
     socket.userName = data.name;
-    console.log(`User ${socket.id} set name to: ${data.name}`);
+    socket.userGender = data.gender;
+    console.log(`User ${socket.id} set name to: ${data.name}, gender: ${data.gender}`);
     
     // Send existing users' locations to the newly named user
     connectedUsers.forEach((userData, userId) => {
@@ -25,6 +26,7 @@ io.on("connection", function (socket) {
         socket.emit("receive-location", {
           id: userId,
           name: userData.name,
+          gender: userData.gender,
           latitude: userData.location.latitude,
           longitude: userData.location.longitude
         });
@@ -41,10 +43,11 @@ io.on("connection", function (socket) {
     // Store user's location data
     connectedUsers.set(socket.id, {
       name: socket.userName,
+      gender: socket.userGender,
       location: { latitude: data.latitude, longitude: data.longitude }
     });
     
-    io.emit("receive-location", { id: socket.id, name: socket.userName, ...data });
+    io.emit("receive-location", { id: socket.id, name: socket.userName, gender: socket.userGender, ...data });
   });
 
   socket.on("send-notification", function (data) {
@@ -52,7 +55,7 @@ io.on("connection", function (socket) {
     console.log(
       `Chat message received from ${displayName}: ${data.message}`
     );
-    io.emit("receive-notification", { id: socket.id, name: socket.userName, ...data });
+    io.emit("receive-notification", { id: socket.id, name: socket.userName, gender: socket.userGender, ...data });
   });
 
   socket.on("disconnect", function () {
