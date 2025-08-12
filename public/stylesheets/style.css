@@ -61,7 +61,7 @@ header h1 .social { color: white; }
   }
 }
 
-/* Custom chat popup styles */
+/* Custom chat popup styles for male users */
 .leaflet-popup.chat-popup .leaflet-popup-content-wrapper {
   background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
   border-radius: 15px;
@@ -77,6 +77,25 @@ header h1 .social { color: white; }
 
 .leaflet-popup.chat-popup .leaflet-popup-tip {
   background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Custom chat popup styles for female users */
+.leaflet-popup.chat-popup-female .leaflet-popup-content-wrapper {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.7) 0%, rgba(190, 24, 93, 0.7) 100%);
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.leaflet-popup.chat-popup-female .leaflet-popup-content {
+  margin: 8px 12px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+}
+
+.leaflet-popup.chat-popup-female .leaflet-popup-tip {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.7) 0%, rgba(190, 24, 93, 0.7) 100%);
   border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -97,8 +116,8 @@ header h1 .social { color: white; }
   animation: none !important;
 }
 
-/* Hologram marker styles with 70% opacity */
-.leaflet-marker-icon {
+/* Hologram marker styles with 70% opacity (for default markers only) */
+.leaflet-marker-icon:not(.custom-gender-marker) {
   opacity: 0.7 !important;
   filter: drop-shadow(0 0 10px rgba(74, 144, 226, 0.6)) 
           drop-shadow(0 0 20px rgba(74, 144, 226, 0.4)) 
@@ -107,11 +126,21 @@ header h1 .social { color: white; }
   transition: all 0.3s ease;
 }
 
-.leaflet-marker-icon:hover {
+.leaflet-marker-icon:not(.custom-gender-marker):hover {
   opacity: 0.9 !important;
   filter: drop-shadow(0 0 15px rgba(74, 144, 226, 0.8)) 
           drop-shadow(0 0 25px rgba(74, 144, 226, 0.6)) 
           drop-shadow(0 0 35px rgba(74, 144, 226, 0.4));
+  transform: scale(1.1);
+}
+
+/* Custom gender marker styles */
+.custom-gender-marker {
+  opacity: 1 !important;
+  transition: all 0.3s ease;
+}
+
+.custom-gender-marker:hover {
   transform: scale(1.1);
 }
 
