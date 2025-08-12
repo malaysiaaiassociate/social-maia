@@ -1,19 +1,18 @@
 {
-  "name": "location-tracker",
+  "name": "social-maia",
   "version": "1.0.0",
-  "description": "",
+  "description": "Real-time social mapping application",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
     "dev": "node app.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "ejs": "^3.1.10",
-    "express": "^4.19.2",
-    "node": "^18.20.4",
-    "socket.io": "^4.7.5"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "ejs": "^3.1.9"
+  },
+  "engines": {
+    "node": ">=16.x"
   }
 }
