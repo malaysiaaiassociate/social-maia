@@ -195,3 +195,8 @@ header h1 .social { color: white; }
     max-height: 120px !important;
   }
 }
+
+/* Hide Leaflet attribution text */
+.leaflet-control-attribution {
+  display: none !important;
+}
