@@ -463,7 +463,7 @@ const createNameInputModal = () => {
       // Temporarily disable the button to prevent multiple submissions
       button.disabled = true;
       button.textContent = 'Checking...';
-      
+
       socket.emit('set-name', { name: name, gender: userGender }); // Pass gender to server
     } else {
       if (!name) {
@@ -500,7 +500,7 @@ const createNameInputModal = () => {
     if (data.name === input.value.trim() && document.body.contains(modal)) {
       userName = data.name;
       userGender = data.gender;
-      
+
       // Send location immediately if we already have it
       if (currentLocation) {
         console.log(`Sending location after name set: ${currentLocation.latitude}, ${currentLocation.longitude}`);
@@ -596,27 +596,27 @@ const shouldSendLocationUpdate = (newLocation) => {
 const createCyberAttackLine = (fromUserName, toUserName) => {
   const fromMarker = userMarkers[fromUserName];
   const toMarker = userMarkers[toUserName];
-  
+
   if (!fromMarker || !toMarker) {
     return;
   }
-  
+
   const fromLatLng = fromMarker.getLatLng();
   const toLatLng = toMarker.getLatLng();
-  
+
   // Remove existing line if any
   const lineId = `${fromUserName}-${toUserName}`;
   if (cyberAttackLines[lineId]) {
     map.removeLayer(cyberAttackLines[lineId]);
     delete cyberAttackLines[lineId];
   }
-  
+
   // Clear existing timeout
   if (cyberAttackTimeouts[lineId]) {
     clearTimeout(cyberAttackTimeouts[lineId]);
     delete cyberAttackTimeouts[lineId];
   }
-  
+
   // Create animated line
   const line = L.polyline([fromLatLng, toLatLng], {
     color: '#00ff41',
@@ -625,7 +625,7 @@ const createCyberAttackLine = (fromUserName, toUserName) => {
     dashArray: '10, 5',
     className: 'cyber-attack-line'
   }).addTo(map);
-  
+
   // Add glow effect
   const glowLine = L.polyline([fromLatLng, toLatLng], {
     color: '#00ff41',
@@ -633,10 +633,10 @@ const createCyberAttackLine = (fromUserName, toUserName) => {
     opacity: 0.3,
     className: 'cyber-attack-glow'
   }).addTo(map);
-  
+
   // Store both lines
   cyberAttackLines[lineId] = L.layerGroup([line, glowLine]).addTo(map);
-  
+
   // Remove line after 5 seconds
   cyberAttackTimeouts[lineId] = setTimeout(() => {
     if (cyberAttackLines[lineId]) {
@@ -645,7 +645,7 @@ const createCyberAttackLine = (fromUserName, toUserName) => {
     }
     delete cyberAttackTimeouts[lineId];
   }, 5000);
-  
+
   // Animate the line
   let offset = 0;
   const animateInterval = setInterval(() => {
@@ -654,7 +654,7 @@ const createCyberAttackLine = (fromUserName, toUserName) => {
       line._path.style.strokeDashoffset = offset;
     }
   }, 100);
-  
+
   // Stop animation after 5 seconds
   setTimeout(() => {
     clearInterval(animateInterval);
@@ -681,11 +681,11 @@ const extractMentions = (message) => {
   const mentionRegex = /@(\w+)/g;
   const mentions = [];
   let match;
-  
+
   while ((match = mentionRegex.exec(message)) !== null) {
     mentions.push(match[1]);
   }
-  
+
   return mentions;
 };
 
@@ -766,7 +766,7 @@ socket.on("receive-location", (data) => {
   const { id, latitude, longitude, message, name, gender } = data; // Added gender
   const userName = name || `User ${id}`;
   console.log(`Received location for ${userName}: ${latitude}, ${longitude}`);
-  
+
   // Store gender information for this user
   if (gender) {
     userGenders[userName] = gender;
@@ -785,28 +785,29 @@ socket.on("receive-location", (data) => {
       marker.off('click'); // Remove any existing click handler
       marker.on('click', () => {
         if (userLastMessages[userName]) {
-          const lastMessageContent = `<div style="text-align: center; min-width: 120px;">
-            <b style="color: white; font-size: 14px;">${userName}</b><br/>
-            <span style="color: #f8f9fa; font-size: 12px;">Last message:</span><br/>
-            <span style="color: #34495e; font-size: 13px; background: #ecf0f1; padding: 4px 8px; border-radius: 12px; display: inline-block; margin-top: 4px;">${userLastMessages[userName]}</span>
+          const lastMessageContent = `<div style="text-align: center; min-width: 100px;">
+            <b style="color: #2c3e50; font-size: 12px;">${userName}</b><br/>
+            <span style="color: #7f8c8d; font-size: 10px;">Last message:</span><br/>
+            <span style="color: #34495e; font-size: 11px; background: #ecf0f1; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
           </div>`;
+          const clickPopupClassName = gender === 'female' ? 'chat-popup-female' : 'chat-popup';
           marker.bindPopup(lastMessageContent, {
             closeButton: true,
             autoClose: true,
             closeOnClick: true,
-            className: 'chat-popup'
+            className: clickPopupClassName
           }).openPopup();
         } else {
-          const noMessageContent = `<div style="text-align: center; min-width: 120px;">
-            <b style="color: white; font-size: 14px;">${userName}</b><br/>
-            <span style="color: #f8f9fa; font-size: 12px; font-style: italic;">No messages yet</span>
+          const noMessageContent = `<div style="text-align: center; min-width: 100px;">
+            <b style="color: white; font-size: 12px;">${userName}</b><br/>
+            <span style="color: #f8f9fa; font-size: 10px; font-style: italic;">No messages yet</span>
           </div>`;
-          const noMsgPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
+          const clickPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
           marker.bindPopup(noMessageContent, {
             closeButton: true,
             autoClose: true,
             closeOnClick: true,
-            className: noMsgPopupClassName
+            className: clickPopupClassName
           }).openPopup();
         }
       });
@@ -836,30 +837,37 @@ socket.on("receive-location", (data) => {
   const addClickHandler = (marker, userName) => {
     marker.off('click'); // Remove any existing click handler
     marker.on('click', () => {
+      const clickZoom = map.getZoom();
+      const isClickZoomedOut = clickZoom <= 10;
+
       if (userLastMessages[userName]) {
-        const lastMessageContent = `<div style="text-align: center; min-width: 100px;">
-          <b style="color: #2c3e50; font-size: 12px;">${userName}</b><br/>
-          <span style="color: #7f8c8d; font-size: 10px;">Last message:</span><br/>
-          <span style="color: #34495e; font-size: 11px; background: #ecf0f1; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
+        const lastMessageContent = `<div style="text-align: center; min-width: ${isClickZoomedOut ? '120px' : '100px'};">
+          <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${userName}</b><br/>
+          <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'};">Last message:</span><br/>
+          <span style="color: #34495e; font-size: ${isClickZoomedOut ? '13px' : '11px'}; background: #ecf0f1; padding: ${isClickZoomedOut ? '4px 8px' : '3px 6px'}; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
         </div>`;
-        const clickPopupClassName = gender === 'female' ? 'chat-popup-female' : 'chat-popup';
+        const timeoutPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
         marker.bindPopup(lastMessageContent, {
           closeButton: true,
           autoClose: true,
           closeOnClick: true,
-          className: clickPopupClassName
+          className: timeoutPopupClassName,
+          maxWidth: isClickZoomedOut ? 120 : 100,
+          offset: [0, isClickZoomedOut ? -10 : -6]
         }).openPopup();
       } else {
-        const noMessageContent = `<div style="text-align: center; min-width: 100px;">
-          <b style="color: white; font-size: 12px;">${userName}</b><br/>
-          <span style="color: #f8f9fa; font-size: 10px; font-style: italic;">No messages yet</span>
+        const noMessageContent = `<div style="text-align: center; min-width: ${isClickZoomedOut ? '120px' : '100px'};">
+          <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${userName}</b><br/>
+          <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'}; font-style: italic;">No messages yet</span>
         </div>`;
-        const clickPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
+        const timeoutNoMsgPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
         marker.bindPopup(noMessageContent, {
           closeButton: true,
           autoClose: true,
           closeOnClick: true,
-          className: clickPopupClassName
+          className: timeoutNoMsgPopupClassName,
+          maxWidth: isClickZoomedOut ? 120 : 100,
+          offset: [0, isClickZoomedOut ? -10 : -6]
         }).openPopup();
       }
     });
@@ -907,14 +915,10 @@ socket.on("receive-notification", (data) => {
   // Update the message history display
   updateMessageHistory();
 
-  // Get current zoom level to adjust popup styling
-  const currentZoom = map.getZoom();
-  const isZoomedOut = currentZoom <= 10; // Consider zoom level 10 and below as zoomed out
-
-  // Enhanced popup content with zoom-aware styling
-  const popupContent = `<div style="text-align: center; min-width: ${isZoomedOut ? '120px' : '100px'}; padding: ${isZoomedOut ? '6px' : '3px'};">
-    <b style="color: white; font-size: ${isZoomedOut ? '14px' : '12px'}; font-weight: bold;">${userName}</b><br/>
-    <span style="color: #34495e; font-size: ${isZoomedOut ? '13px' : '11px'}; background: #ecf0f1; padding: ${isZoomedOut ? '4px 8px' : '3px 6px'}; border-radius: 8px; display: inline-block; margin-top: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">${message}</span>
+  // Use consistent popup styling for all zoom levels (using smaller "zoomed in" size)
+  const popupContent = `<div style="text-align: center; min-width: 100px; padding: 3px;">
+    <b style="color: white; font-size: 12px; font-weight: bold;">${userName}</b><br/>
+    <span style="color: #34495e; font-size: 11px; background: #ecf0f1; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">${message}</span>
   </div>`;
 
   // Use userMarkers to find the marker for this user
@@ -928,7 +932,7 @@ socket.on("receive-notification", (data) => {
     // Temporarily disable click handler to prevent interference
     userMarkers[userName].off('click');
 
-    // Enhanced popup options for better visibility at all zoom levels with gender-based styling
+    // Enhanced popup options with consistent sizing for all zoom levels
     const popupClassName = data.gender === 'female' ? 'chat-popup-female' : 'chat-popup';
     const popupOptions = {
       closeButton: true,
@@ -937,10 +941,10 @@ socket.on("receive-notification", (data) => {
       closeOnEscapeKey: false,
       keepInView: true,
       className: popupClassName,
-      maxWidth: isZoomedOut ? 120 : 100,
+      maxWidth: 100,
       autoPan: true,
       autoPanPadding: [20, 20],
-      offset: [0, isZoomedOut ? -10 : -6] // Adjust offset based on zoom level
+      offset: [0, -6]
     };
 
     // Show the chat message popup with enhanced styling that persists during zoom
@@ -951,13 +955,10 @@ socket.on("receive-notification", (data) => {
     if (popup) {
       popup._closeOnMapZoom = false;
 
-      // Add custom popup positioning for zoomed-out views
-      if (isZoomedOut) {
-        const popupElement = popup.getElement();
-        if (popupElement) {
-          popupElement.style.zIndex = '1000';
-          popupElement.style.transform += ' scale(1.1)'; // Slightly larger for zoomed-out views
-        }
+      // Ensure consistent popup styling
+      const popupElement = popup.getElement();
+      if (popupElement) {
+        popupElement.style.zIndex = '1000';
       }
     }
 
@@ -1013,7 +1014,7 @@ socket.on("receive-notification", (data) => {
 
 socket.on("user-connected", (data) => {
   const { name, gender } = data;
-  
+
   // Don't show connection message for the current user
   if (name !== userName) {
     // Add connection message to recent messages history
@@ -1037,7 +1038,7 @@ socket.on("user-connected", (data) => {
 
 socket.on("user-left", (data) => {
   const { name, gender } = data;
-  
+
   // Don't show disconnection message for the current user
   if (name !== userName) {
     // Add disconnection message to recent messages history
