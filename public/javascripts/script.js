@@ -592,6 +592,75 @@ const shouldSendLocationUpdate = (newLocation) => {
   return distance >= MIN_DISTANCE_THRESHOLD;
 };
 
+// Function to create cyber attack line between two users
+const createCyberAttackLine = (fromUserName, toUserName) => {
+  const fromMarker = userMarkers[fromUserName];
+  const toMarker = userMarkers[toUserName];
+  
+  if (!fromMarker || !toMarker) {
+    return;
+  }
+  
+  const fromLatLng = fromMarker.getLatLng();
+  const toLatLng = toMarker.getLatLng();
+  
+  // Remove existing line if any
+  const lineId = `${fromUserName}-${toUserName}`;
+  if (cyberAttackLines[lineId]) {
+    map.removeLayer(cyberAttackLines[lineId]);
+    delete cyberAttackLines[lineId];
+  }
+  
+  // Clear existing timeout
+  if (cyberAttackTimeouts[lineId]) {
+    clearTimeout(cyberAttackTimeouts[lineId]);
+    delete cyberAttackTimeouts[lineId];
+  }
+  
+  // Create animated line
+  const line = L.polyline([fromLatLng, toLatLng], {
+    color: '#00ff41',
+    weight: 3,
+    opacity: 0.8,
+    dashArray: '10, 5',
+    className: 'cyber-attack-line'
+  }).addTo(map);
+  
+  // Add glow effect
+  const glowLine = L.polyline([fromLatLng, toLatLng], {
+    color: '#00ff41',
+    weight: 6,
+    opacity: 0.3,
+    className: 'cyber-attack-glow'
+  }).addTo(map);
+  
+  // Store both lines
+  cyberAttackLines[lineId] = L.layerGroup([line, glowLine]).addTo(map);
+  
+  // Remove line after 5 seconds
+  cyberAttackTimeouts[lineId] = setTimeout(() => {
+    if (cyberAttackLines[lineId]) {
+      map.removeLayer(cyberAttackLines[lineId]);
+      delete cyberAttackLines[lineId];
+    }
+    delete cyberAttackTimeouts[lineId];
+  }, 5000);
+  
+  // Animate the line
+  let offset = 0;
+  const animateInterval = setInterval(() => {
+    offset += 2;
+    if (line._path) {
+      line._path.style.strokeDashoffset = offset;
+    }
+  }, 100);
+  
+  // Stop animation after 5 seconds
+  setTimeout(() => {
+    clearInterval(animateInterval);
+  }, 5000);
+};
+
 
 
 // Store last notification messages for each user
@@ -602,6 +671,23 @@ const userGenders = {};
 const notificationTimeouts = {};
 // Store recent messages for the message history box
 const recentMessages = [];
+// Store active cyber attack lines
+const cyberAttackLines = {};
+// Store cyber attack line timeouts
+const cyberAttackTimeouts = {};
+
+// Function to extract @mentions from a message
+const extractMentions = (message) => {
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [];
+  let match;
+  
+  while ((match = mentionRegex.exec(message)) !== null) {
+    mentions.push(match[1]);
+  }
+  
+  return mentions;
+};
 
 // Create message history display box
 const createMessageHistoryBox = () => {
@@ -796,6 +882,15 @@ socket.on("receive-notification", (data) => {
   if (gender) {
     userGenders[userName] = gender;
   }
+
+  // Check for @mentions and create cyber attack lines
+  const mentions = extractMentions(message);
+  mentions.forEach(mentionedUser => {
+    // Check if the mentioned user exists and has a marker
+    if (userMarkers[mentionedUser] && userMarkers[userName]) {
+      createCyberAttackLine(userName, mentionedUser);
+    }
+  });
 
   // Add to recent messages history
   recentMessages.push({
