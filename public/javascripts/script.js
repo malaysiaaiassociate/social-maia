@@ -649,7 +649,7 @@ const createCyberAttackLine = (fromUserName, toUserName) => {
   // Animate the line
   let offset = 0;
   const animateInterval = setInterval(() => {
-    offset += 2;
+    offset -= 2;
     if (line._path) {
       line._path.style.strokeDashoffset = offset;
     }
