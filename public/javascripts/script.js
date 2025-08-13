@@ -750,6 +750,9 @@ const updateMessageHistory = () => {
       </div>`;
     }
   }).join('');
+
+  // Automatically scroll to the bottom to show the most recent message
+  messageBox.scrollTop = messageBox.scrollHeight;
 };
 
 // Initialize message history box
