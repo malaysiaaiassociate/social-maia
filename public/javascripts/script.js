@@ -715,7 +715,7 @@ socket.on("receive-location", (data) => {
             <b style="color: white; font-size: 14px;">${userName}</b><br/>
             <span style="color: #f8f9fa; font-size: 12px; font-style: italic;">No messages yet</span>
           </div>`;
-          const noMsgPopupClassName = gender === 'female' ? 'chat-popup-female' : 'chat-popup';
+          const noMsgPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
           marker.bindPopup(noMessageContent, {
             closeButton: true,
             autoClose: true,
@@ -744,7 +744,7 @@ socket.on("receive-location", (data) => {
 
   // Create new marker for this user (only when no marker exists)
   const markerColor = getMarkerColor(gender); // Get color based on gender
-  const newMarker = L.marker([newLat, newLng], { icon: L.divIcon({className: 'user-marker', html: `<div style="background-color: ${markerColor}; border-radius: 50%; width: 20px; height: 20px; border: 2px solid white; box-shadow: 0 0 0 2px ${markerColor};"></div>`, iconSize: [20, 20], iconAnchor: [10, 10]}) }).addTo(markerClusterGroup);
+  const newMarker = L.marker([newLat, newLng], { icon: L.divIcon({className: 'user-marker', html: `<div style="background-color: ${markerColor}; border-radius: 50%; width: 10px; height: 10px; border: 1px solid white; box-shadow: 0 0 0 1px ${markerColor};"></div>`, iconSize: [15, 15], iconAnchor: [5, 5]}) }).addTo(markerClusterGroup);
 
   // Add click event to show last chat message (for all users)
   const addClickHandler = (marker, userName) => {
@@ -765,14 +765,15 @@ socket.on("receive-location", (data) => {
         }).openPopup();
       } else {
         const noMessageContent = `<div style="text-align: center; min-width: 100px;">
-          <b style="color: #2c3e50; font-size: 12px;">${userName}</b><br/>
-          <span style="color: #95a5a6; font-size: 10px; font-style: italic;">No messages yet</span>
+          <b style="color: white; font-size: 12px;">${userName}</b><br/>
+          <span style="color: #f8f9fa; font-size: 10px; font-style: italic;">No messages yet</span>
         </div>`;
+        const clickPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
         marker.bindPopup(noMessageContent, {
           closeButton: true,
           autoClose: true,
           closeOnClick: true,
-          className: 'chat-popup'
+          className: clickPopupClassName
         }).openPopup();
       }
     });
