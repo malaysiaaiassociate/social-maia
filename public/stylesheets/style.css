@@ -200,3 +200,24 @@ header h1 .social { color: white; }
 .leaflet-control-attribution {
   display: none !important;
 }
+
+/* Cyber attack line styles */
+.cyber-attack-line {
+  animation: cyber-pulse 0.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 5px #00ff41);
+}
+
+.cyber-attack-glow {
+  filter: blur(2px) drop-shadow(0 0 10px #00ff41);
+}
+
+@keyframes cyber-pulse {
+  0% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px #00ff41);
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 15px #00ff41) drop-shadow(0 0 25px #00ff41);
+  }
+}
