@@ -44,9 +44,9 @@ if (navigator.geolocation) {
       // Send initial location
       if (currentLocation && userName) {
         console.log(`Sending initial location: ${currentLocation.latitude}, ${currentLocation.longitude}`);
-        socket.emit("send-location", { 
-          latitude: currentLocation.latitude, 
-          longitude: currentLocation.longitude, 
+        socket.emit("send-location", {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
           name: userName,
           gender: userGender // Include gender in the emitted data
         });
@@ -85,9 +85,9 @@ if (navigator.geolocation) {
       // Only send location update if it meets our throttling criteria
       if (shouldSendLocationUpdate(currentLocation)) {
         console.log(`Sending location: ${currentLocation.latitude}, ${currentLocation.longitude}`);
-        socket.emit("send-location", { 
-          latitude: currentLocation.latitude, 
-          longitude: currentLocation.longitude, 
+        socket.emit("send-location", {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
           name: userName,
           gender: userGender // Include gender in the emitted data
         });
@@ -288,9 +288,9 @@ const createNotificationInput = () => {
 
       // Send updated location with throttling when GPS is toggled
       if (shouldSendLocationUpdate(currentLocation)) {
-        socket.emit("send-location", { 
-          latitude: currentLocation.latitude, 
-          longitude: currentLocation.longitude, 
+        socket.emit("send-location", {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
           name: userName,
           gender: userGender // Include gender in the emitted data
         });
@@ -504,9 +504,9 @@ const createNameInputModal = () => {
       // Send location immediately if we already have it
       if (currentLocation) {
         console.log(`Sending location after name set: ${currentLocation.latitude}, ${currentLocation.longitude}`);
-        socket.emit("send-location", { 
-          latitude: currentLocation.latitude, 
-          longitude: currentLocation.longitude, 
+        socket.emit("send-location", {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
           name: userName,
           gender: userGender
         });
@@ -745,7 +745,7 @@ const updateMessageHistory = () => {
       // Regular chat messages
       const borderColor = userGenders[msg.name] === 'female' ? '#FF69B4' : '#007bff';
       return `<div style="margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 5px; border-left: 3px solid ${borderColor};">
-        <strong style="color: #2c3e50;">${msg.name}:</strong> 
+        <strong style="color: #2c3e50;">${msg.name}:</strong>
         <span style="color: #34495e;">${msg.message}</span>
       </div>`;
     }
@@ -757,6 +757,31 @@ const updateMessageHistory = () => {
 
 // Initialize message history box
 const messageHistoryBox = createMessageHistoryBox();
+
+// Store timeout for message history box highlight
+let messageHistoryHighlightTimeout = null;
+
+// Function to highlight message history box when user is mentioned
+const highlightMessageHistoryBox = () => {
+  const messageBox = document.getElementById('messageHistoryBox');
+  if (!messageBox) return;
+
+  // Clear any existing timeout
+  if (messageHistoryHighlightTimeout) {
+    clearTimeout(messageHistoryHighlightTimeout);
+  }
+
+  // Apply green border
+  messageBox.style.border = '3px solid #00ff41';
+  messageBox.style.boxShadow = '0 0 15px rgba(0, 255, 65, 0.5)';
+
+  // Remove green border after 5 seconds
+  messageHistoryHighlightTimeout = setTimeout(() => {
+    messageBox.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+    messageBox.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    messageHistoryHighlightTimeout = null;
+  }, 5000);
+};
 
 // Function to determine marker color based on gender
 const getMarkerColor = (gender) => {
@@ -885,27 +910,32 @@ socket.on("receive-location", (data) => {
 
 socket.on("receive-notification", (data) => {
   const { id, latitude, longitude, message, name, gender } = data;
-  const userName = name || `User ${id}`;
-  console.log(`Received chat message from ${userName}: ${message}`);
+  const senderName = name || `User ${id}`;
+  console.log(`Received chat message from ${senderName}: ${message}`);
 
   // Store the last message for this user and gender info
-  userLastMessages[userName] = message;
+  userLastMessages[senderName] = message;
   if (gender) {
-    userGenders[userName] = gender;
+    userGenders[senderName] = gender;
   }
 
   // Check for @mentions and create cyber attack lines
   const mentions = extractMentions(message);
   mentions.forEach(mentionedUser => {
     // Check if the mentioned user exists and has a marker
-    if (userMarkers[mentionedUser] && userMarkers[userName]) {
-      createCyberAttackLine(userName, mentionedUser);
+    if (userMarkers[mentionedUser] && userMarkers[senderName]) {
+      createCyberAttackLine(senderName, mentionedUser);
     }
   });
 
+  // Check if the current user (userName is the global variable for current user) is mentioned in this message
+  if (mentions.includes(userName)) {
+    highlightMessageHistoryBox();
+  }
+
   // Add to recent messages history
   recentMessages.push({
-    name: userName,
+    name: senderName,
     message: message,
     timestamp: Date.now()
   });
@@ -920,20 +950,20 @@ socket.on("receive-notification", (data) => {
 
   // Use consistent popup styling for all zoom levels (using smaller "zoomed in" size)
   const popupContent = `<div style="text-align: center; min-width: 100px; padding: 3px;">
-    <b style="color: white; font-size: 12px; font-weight: bold;">${userName}</b><br/>
+    <b style="color: white; font-size: 12px; font-weight: bold;">${senderName}</b><br/>
     <span style="color: #34495e; font-size: 11px; background: #ecf0f1; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">${message}</span>
   </div>`;
 
   // Use userMarkers to find the marker for this user
-  if (userMarkers[userName]) {
+  if (userMarkers[senderName]) {
     // Clear any existing timeout for this user
-    if (notificationTimeouts[userName]) {
-      clearTimeout(notificationTimeouts[userName]);
-      delete notificationTimeouts[userName];
+    if (notificationTimeouts[senderName]) {
+      clearTimeout(notificationTimeouts[senderName]);
+      delete notificationTimeouts[senderName];
     }
 
     // Temporarily disable click handler to prevent interference
-    userMarkers[userName].off('click');
+    userMarkers[senderName].off('click');
 
     // Enhanced popup options with consistent sizing for all zoom levels
     const popupClassName = data.gender === 'female' ? 'chat-popup-female' : 'chat-popup';
@@ -951,10 +981,10 @@ socket.on("receive-notification", (data) => {
     };
 
     // Show the chat message popup with enhanced styling that persists during zoom
-    userMarkers[userName].bindPopup(popupContent, popupOptions).openPopup();
+    userMarkers[senderName].bindPopup(popupContent, popupOptions).openPopup();
 
     // Prevent popup from closing during zoom operations and enhance visibility
-    const popup = userMarkers[userName].getPopup();
+    const popup = userMarkers[senderName].getPopup();
     if (popup) {
       popup._closeOnMapZoom = false;
 
@@ -966,25 +996,25 @@ socket.on("receive-notification", (data) => {
     }
 
     // Set timeout to close the popup after 8 seconds and restore click handler
-    notificationTimeouts[userName] = setTimeout(() => {
-      if (userMarkers[userName] && userMarkers[userName].isPopupOpen()) {
-        userMarkers[userName].closePopup();
+    notificationTimeouts[senderName] = setTimeout(() => {
+      if (userMarkers[senderName] && userMarkers[senderName].isPopupOpen()) {
+        userMarkers[senderName].closePopup();
       }
 
       // Restore click handler after notification timeout
-      if (userMarkers[userName]) {
-        userMarkers[userName].on('click', () => {
+      if (userMarkers[senderName]) {
+        userMarkers[senderName].on('click', () => {
           const clickZoom = map.getZoom();
           const isClickZoomedOut = clickZoom <= 10;
 
-          if (userLastMessages[userName]) {
+          if (userLastMessages[senderName]) {
             const lastMessageContent = `<div style="text-align: center; min-width: ${isClickZoomedOut ? '120px' : '100px'};">
-              <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${userName}</b><br/>
+              <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${senderName}</b><br/>
               <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'};">Last message:</span><br/>
-              <span style="color: #34495e; font-size: ${isClickZoomedOut ? '13px' : '11px'}; background: #ecf0f1; padding: ${isClickZoomedOut ? '4px 8px' : '3px 6px'}; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[userName]}</span>
+              <span style="color: #34495e; font-size: ${isClickZoomedOut ? '13px' : '11px'}; background: #ecf0f1; padding: ${isClickZoomedOut ? '4px 8px' : '3px 6px'}; border-radius: 8px; display: inline-block; margin-top: 2px;">${userLastMessages[senderName]}</span>
             </div>`;
-            const timeoutPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
-            userMarkers[userName].bindPopup(lastMessageContent, {
+            const timeoutPopupClassName = userGenders[senderName] === 'female' ? 'chat-popup-female' : 'chat-popup';
+            userMarkers[senderName].bindPopup(lastMessageContent, {
               closeButton: true,
               autoClose: true,
               closeOnClick: true,
@@ -994,11 +1024,11 @@ socket.on("receive-notification", (data) => {
             }).openPopup();
           } else {
             const noMessageContent = `<div style="text-align: center; min-width: ${isClickZoomedOut ? '120px' : '100px'};">
-              <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${userName}</b><br/>
+              <b style="color: white; font-size: ${isClickZoomedOut ? '14px' : '12px'};">${senderName}</b><br/>
               <span style="color: #f8f9fa; font-size: ${isClickZoomedOut ? '11px' : '10px'}; font-style: italic;">No messages yet</span>
             </div>`;
-            const timeoutNoMsgPopupClassName = userGenders[userName] === 'female' ? 'chat-popup-female' : 'chat-popup';
-            userMarkers[userName].bindPopup(noMessageContent, {
+            const timeoutNoMsgPopupClassName = userGenders[senderName] === 'female' ? 'chat-popup-female' : 'chat-popup';
+            userMarkers[senderName].bindPopup(noMessageContent, {
               closeButton: true,
               autoClose: true,
               closeOnClick: true,
@@ -1010,7 +1040,7 @@ socket.on("receive-notification", (data) => {
         });
       }
 
-      delete notificationTimeouts[userName];
+      delete notificationTimeouts[senderName];
     }, 8000);
   }
 });
