@@ -695,10 +695,9 @@ const createMessageHistoryBox = () => {
   messageBox.id = 'messageHistoryBox';
   messageBox.style.cssText = `
     position: fixed;
-    top: 50%;
+    top: 140px;
     right: 20px;
-    transform: translateY(-50%);
-    width: 250px;
+    width: 200px;
     max-height: 200px;
     background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(10px);
@@ -708,7 +707,7 @@ const createMessageHistoryBox = () => {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
     color: #333;
-    z-index: 1000;
+    z-index: 500;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
     overflow-y: auto;
