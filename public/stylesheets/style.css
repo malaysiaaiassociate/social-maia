@@ -178,8 +178,7 @@ header h1 .social { color: white; }
 
   #messageHistoryBox {
     width: 200px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
+    top: 60px !important;
     right: 10px !important;
     font-size: 12px !important;
   }
@@ -187,10 +186,9 @@ header h1 .social { color: white; }
 
 @media screen and (max-width: 480px) {
   #messageHistoryBox {
-    width: 180px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    right: 5px !important;
+    width: 160px !important;
+    top: 125px !important;
+    right: 10px !important;
     font-size: 11px !important;
     max-height: 120px !important;
   }
@@ -220,4 +218,19 @@ header h1 .social { color: white; }
     opacity: 1;
     filter: drop-shadow(0 0 15px #00ff41) drop-shadow(0 0 25px #00ff41);
   }
+}
+
+
+/* Ensure message history box stays behind map controls */
+#messageHistoryBox {
+  z-index: 500 !important;
+}
+
+/* Make sure Leaflet controls have higher z-index */
+.leaflet-control-layers {
+  z-index: 1000 !important;
+}
+
+.leaflet-control-layers-expanded {
+  z-index: 1001 !important;
 }
