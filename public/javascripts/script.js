@@ -798,7 +798,12 @@ socket.on("receive-location", (data) => {
   if (gender) {
     userGenders[userName] = gender;
   }
-  map.setView([latitude, longitude]);
+  
+  // Only center map on current user's location, not other users
+  if (userName === window.userName || (!name && id === socket.id)) {
+    map.setView([latitude, longitude]);
+  }
+  
   const [newLat, newLng] = addOffset(latitude, longitude);
 
   // If user already has a marker, just update position and exit
@@ -974,7 +979,7 @@ socket.on("receive-notification", (data) => {
       keepInView: true,
       className: popupClassName,
       maxWidth: 100,
-      autoPan: true,
+      autoPan: false,
       autoPanPadding: [20, 20],
       offset: [0, -6]
     };
