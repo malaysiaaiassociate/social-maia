@@ -130,7 +130,7 @@ const lightLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/
 });
 
 // Set default layer
-osmLayer.addTo(map);
+lightLayer.addTo(map);
 
 // Create layer control
 const baseMaps = {
