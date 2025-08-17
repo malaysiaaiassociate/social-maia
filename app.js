@@ -815,6 +815,119 @@ app.get("/api/crisis", async function (req, res) {
   }
 });
 
+// Waze data cache with 10-minute expiration
+const wazeCache = {
+  data: null,
+  timestamp: null,
+  isValid: function() {
+    if (!this.data || !this.timestamp) {
+      return false;
+    }
+    const tenMinutes = 10 * 60 * 1000; // 10 minutes in milliseconds
+    return Date.now() - this.timestamp < tenMinutes;
+  },
+  set: function(data) {
+    this.data = data;
+    this.timestamp = Date.now();
+  },
+  get: function() {
+    return this.isValid() ? this.data : null;
+  },
+  clear: function() {
+    this.data = null;
+    this.timestamp = null;
+  }
+};
+
+// Waze police data API endpoint
+app.get("/api/waze/police", async function (req, res) {
+  try {
+    // Check cache first
+    const cachedWaze = wazeCache.get();
+    if (cachedWaze) {
+      console.log(`Returning cached Waze data with ${cachedWaze.length} police reports`);
+      res.set('x-cache-status', 'HIT');
+      res.json(cachedWaze);
+      return;
+    }
+
+    console.log('Cache miss - fetching fresh Waze data from API');
+
+    // Malaysia bounding box coordinates
+    const top = 7.5;      // Northern border
+    const bottom = 0.5;   // Southern border  
+    const left = 99.0;    // Western border
+    const right = 120.0;  // Eastern border
+
+    // Waze Live Map API URL for Malaysia
+    const wazeUrl = `https://www.waze.com/live-map/api/georss?top=${top}&bottom=${bottom}&left=${left}&right=${right}&env=row&types=alerts,traffic`;
+
+    const response = await axios.get(wazeUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    let policeReports = [];
+
+    if (response.data && response.data.alerts) {
+      // Filter for police-related alerts
+      policeReports = response.data.alerts
+        .filter(alert => {
+          const type = alert.type ? alert.type.toLowerCase() : '';
+          const subtype = alert.subtype ? alert.subtype.toLowerCase() : '';
+          
+          return type === 'police' || 
+                 type.includes('police') || 
+                 subtype.includes('police') ||
+                 (alert.reportDescription && alert.reportDescription.toLowerCase().includes('police'));
+        })
+        .map(alert => ({
+          id: alert.id || `police_${Date.now()}_${Math.random()}`,
+          type: 'police',
+          latitude: alert.location ? alert.location.y : alert.y,
+          longitude: alert.location ? alert.location.x : alert.x,
+          street: alert.street || 'Unknown Street',
+          city: alert.city || 'Unknown City',
+          country: alert.country || 'Malaysia',
+          reportDescription: alert.reportDescription || 'Police reported',
+          reliability: alert.reliability || 0,
+          confidence: alert.confidence || 0,
+          reportTime: alert.pubMillis ? new Date(alert.pubMillis).toISOString() : new Date().toISOString(),
+          speed: alert.speed || 0,
+          reportBy: alert.reportBy || 'Waze User',
+          magvar: alert.magvar || 0,
+          roadType: alert.roadType || 0,
+          uuid: alert.uuid || null
+        }))
+        .filter(report => 
+          report.latitude && 
+          report.longitude && 
+          report.latitude >= bottom && 
+          report.latitude <= top && 
+          report.longitude >= left && 
+          report.longitude <= right
+        );
+    }
+
+    // Cache the result
+    wazeCache.set(policeReports);
+    console.log(`Cached ${policeReports.length} Waze police reports for 10 minutes`);
+    res.set('x-cache-status', 'MISS');
+    res.json(policeReports);
+
+  } catch (error) {
+    console.error('Error fetching Waze data:', error.message);
+    
+    // Cache empty result to prevent repeated failed API calls
+    const emptyResult = [];
+    wazeCache.set(emptyResult);
+    
+    res.status(500).json({ error: 'Failed to fetch Waze police data' });
+  }
+});
+
 // Debug endpoint to view all cached news articles
 app.get("/api/news/debug", async function (req, res) {
   try {
