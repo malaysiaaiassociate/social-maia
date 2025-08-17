@@ -188,6 +188,19 @@ map.on('zoomstart', function() {
       }
     }
   });
+
+  // Ensure police markers remain visible and stable during zoom
+  Object.values(policeMarkers).forEach(marker => {
+    if (marker) {
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
+      }
+      // Prevent marker from being affected by zoom animations
+      if (marker._icon) {
+        marker._icon.style.transition = 'none';
+      }
+    }
+  });
 });
 
 // Add zoom animation handler to maintain marker stability
@@ -235,6 +248,13 @@ map.on('zoomend', function() {
 
   // Ensure all crisis markers are properly attached to the map after zoom
   Object.values(crisisMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+
+  // Ensure all police markers are properly attached to the map after zoom
+  Object.values(policeMarkers).forEach(marker => {
     if (marker && !map.hasLayer(marker)) {
       marker.addTo(map);
     }
@@ -741,6 +761,10 @@ let newsData = [];
 const crisisMarkers = {};
 // Store crisis data
 let crisisData = [];
+// Store police markers
+const policeMarkers = {};
+// Store police data
+let policeData = [];
 
 // Function to extract @mentions from a message
 const extractMentions = (message) => {
@@ -822,6 +846,141 @@ const updateMessageHistory = () => {
 
 // Initialize message history box
 const messageHistoryBox = createMessageHistoryBox();
+
+// Function to load and display police markers
+const loadPoliceMarkers = async () => {
+  // Prevent redundant loading if already in progress or during zoom
+  if (isLoadingPolice || isZooming) {
+    return;
+  }
+  
+  try {
+    isLoadingPolice = true;
+    const response = await fetch('/api/waze/police');
+    const police = await response.json();
+
+    if (Array.isArray(police) && police.length > 0) {
+      policeData = police;
+      displayPoliceMarkers();
+      console.log(`Displayed ${Object.keys(policeMarkers).length} police markers`);
+    } else {
+      console.log('No police data received or empty array');
+    }
+  } catch (error) {
+    console.error('Error loading police data:', error);
+  } finally {
+    isLoadingPolice = false;
+  }
+};
+
+// Function to display police markers on the map
+const displayPoliceMarkers = () => {
+  // Prevent any marker manipulation during zoom operations
+  if (isZooming) {
+    return;
+  }
+
+  // Clear existing police markers from map and tracking object
+  Object.values(policeMarkers).forEach(marker => {
+    if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+  
+  // Clear the policeMarkers object
+  for (let key in policeMarkers) {
+    delete policeMarkers[key];
+  }
+
+  if (!policeData || !Array.isArray(policeData)) {
+    console.log('No valid police data to display');
+    return;
+  }
+
+  let successfulMarkers = 0;
+  let failedMarkers = 0;
+
+  policeData.forEach((report, index) => {
+    if (report.latitude && report.longitude) {
+      try {
+        successfulMarkers++;
+
+        const policeIconDiv = L.divIcon({
+          className: 'police-marker',
+          html: `<div class="police-icon">🚔</div>`,
+          iconSize: [15, 15],
+          iconAnchor: [7.5, 7.5]
+        });
+
+        const marker = L.marker([report.latitude, report.longitude], {
+          icon: policeIconDiv,
+          zIndexOffset: 3000
+        }).addTo(map);
+
+        // Create popup content
+        const popupContent = createPolicePopupContent(report);
+
+        marker.bindPopup(popupContent, {
+          maxWidth: 200,
+          maxHeight: 250,
+          className: 'police-popup'
+        });
+
+        marker.on('click', () => {
+          marker.openPopup();
+        });
+
+        policeMarkers[`police-${index}`] = marker;
+      } catch (markerError) {
+        console.error('Error creating police marker:', markerError);
+        failedMarkers++;
+      }
+    } else {
+      failedMarkers++;
+    }
+  });
+
+  console.log(`Police markers: ${successfulMarkers} displayed, ${failedMarkers} failed`);
+};
+
+// Function to create police popup content
+const createPolicePopupContent = (report) => {
+  const timeAgo = getTimeAgo(new Date(report.reportTime));
+  
+  const reliabilityColor = report.reliability >= 7 ? '#28a745' : 
+                          report.reliability >= 4 ? '#ffc107' : '#dc3545';
+
+  return `
+    <div class="police-popup-content">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.2; color: #2c3e50;">
+        🚔 Police Report
+      </h3>
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="background: #0066ff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; font-weight: bold;">
+            Police
+          </span>
+          <span style="font-size: 10px; color: #666;">
+            ${timeAgo}
+          </span>
+        </div>
+      </div>
+      <p style="margin: 0 0 6px 0; font-size: 12px; line-height: 1.3; color: #34495e;">
+        <strong>Location:</strong> ${report.street}, ${report.city}
+      </p>
+      <p style="margin: 0 0 6px 0; font-size: 11px; line-height: 1.3; color: #34495e;">
+        <strong>Description:</strong> ${report.reportDescription}
+      </p>
+      <div style="margin: 6px 0; font-size: 11px; color: #555;">
+        <strong>Reliability:</strong> 
+        <span style="color: ${reliabilityColor}; font-weight: bold;">${report.reliability}/10</span><br/>
+        <strong>Reported by:</strong> ${report.reportBy === 'Waze User' ? 'Unknown' : report.reportBy}<br/>
+        ${report.speed > 0 ? `<strong>Speed:</strong> ${report.speed} km/h<br/>` : ''}
+      </div>
+      
+    </div>
+  `;
+};
 
 // Function to load and display crisis markers
 const loadCrisisMarkers = async () => {
@@ -1163,11 +1322,13 @@ const checkFailedArticles = () => {
   // Silent check - no console logs
 };
 
-// Track if news and crisis data have been loaded to prevent redundant calls
+// Track if news, crisis, and police data have been loaded to prevent redundant calls
 let newsLoaded = false;
 let isLoadingNews = false;
 let crisisLoaded = false;
 let isLoadingCrisis = false;
+let policeLoaded = false;
+let isLoadingPolice = false;
 
 // Load news markers when the page loads
 const initializeNews = async () => {
@@ -1193,10 +1354,23 @@ const initializeCrisis = async () => {
   }
 };
 
-// Initialize news and crisis after a short delay to ensure map is ready
+// Load police markers when the page loads
+const initializePolice = async () => {
+  if (!policeLoaded && !isLoadingPolice) {
+    try {
+      await loadPoliceMarkers();
+      policeLoaded = true;
+    } catch (error) {
+      console.error('Failed to initialize police:', error);
+    }
+  }
+};
+
+// Initialize news, crisis, and police after a short delay to ensure map is ready
 setTimeout(() => {
   initializeNews();
   initializeCrisis();
+  initializePolice();
 }, 1000);
 
 // Check failed articles after a short delay to ensure API has been called
@@ -1217,6 +1391,14 @@ setInterval(async () => {
     await loadCrisisMarkers();
   }
 }, 30 * 60 * 1000);
+
+// Refresh police data every 10 minutes (very frequent for real-time traffic reports)
+setInterval(async () => {
+  // Only reload if not currently zooming and police is already loaded
+  if (!isZooming && policeLoaded && !isLoadingPolice) {
+    await loadPoliceMarkers();
+  }
+}, 10 * 60 * 1000);
 
 // Store timeout for message history box highlight
 let messageHistoryHighlightTimeout = null;
