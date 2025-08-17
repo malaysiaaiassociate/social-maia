@@ -593,6 +593,228 @@ async function geocodeLocation(locationName) {
   }
 }
 
+// Crisis data cache with 30-minute expiration
+const crisisCache = {
+  data: null,
+  timestamp: null,
+  isValid: function() {
+    if (!this.data || !this.timestamp) {
+      return false;
+    }
+    const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
+    return Date.now() - this.timestamp < thirtyMinutes;
+  },
+  set: function(data) {
+    this.data = data;
+    this.timestamp = Date.now();
+  },
+  get: function() {
+    return this.isValid() ? this.data : null;
+  },
+  clear: function() {
+    this.data = null;
+    this.timestamp = null;
+  }
+};
+
+// Crisis API endpoint
+app.get("/api/crisis", async function (req, res) {
+  try {
+    // Check cache first
+    const cachedCrisis = crisisCache.get();
+    if (cachedCrisis) {
+      console.log(`Returning cached crisis data with ${cachedCrisis.length} incidents`);
+      res.set('x-cache-status', 'HIT');
+      res.json(cachedCrisis);
+      return;
+    }
+
+    console.log('Cache miss - fetching fresh crisis data from APIs');
+
+    let allCrisisData = [];
+
+    // Fetch earthquake data from USGS
+    try {
+      const earthquakeResponse = await axios.get('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson', {
+        timeout: 10000
+      });
+
+      if (earthquakeResponse.data && earthquakeResponse.data.features) {
+        const earthquakes = earthquakeResponse.data.features.map(quake => {
+          const props = quake.properties;
+          const coords = quake.geometry.coordinates;
+          
+          return {
+            id: quake.id,
+            type: 'earthquake',
+            title: props.title,
+            magnitude: props.mag,
+            location: props.place,
+            time: new Date(props.time).toISOString(),
+            latitude: coords[1],
+            longitude: coords[0],
+            depth: coords[2],
+            status: props.status,
+            tsunami: props.tsunami,
+            severity: props.mag >= 6.0 ? 'severe' : props.mag >= 4.0 ? 'moderate' : 'minor',
+            url: props.url,
+            image: null // USGS doesn't provide images
+          };
+        });
+
+        allCrisisData = allCrisisData.concat(earthquakes);
+      }
+    } catch (earthquakeError) {
+      console.error('Error fetching earthquake data:', earthquakeError.message);
+    }
+
+    // Fetch wildfire data from NASA FIRMS
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateString = yesterday.toISOString().split('T')[0];
+
+      const wildfireResponse = await axios.get(`https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv`, {
+        timeout: 10000
+      });
+
+      if (wildfireResponse.data) {
+        const lines = wildfireResponse.data.split('\n');
+        const headers = lines[0].split(',');
+        
+        const latIndex = headers.indexOf('latitude');
+        const lonIndex = headers.indexOf('longitude');
+        const brightIndex = headers.indexOf('brightness');
+        const confIndex = headers.indexOf('confidence');
+        const dateIndex = headers.indexOf('acq_date');
+        const timeIndex = headers.indexOf('acq_time');
+
+        const wildfires = lines.slice(1, 51).map((line, index) => { // Limit to 50 fires
+          const values = line.split(',');
+          if (values.length < headers.length) return null;
+
+          const lat = parseFloat(values[latIndex]);
+          const lon = parseFloat(values[lonIndex]);
+          const brightness = parseFloat(values[brightIndex]);
+          const confidence = parseFloat(values[confIndex]);
+
+          if (isNaN(lat) || isNaN(lon) || confidence < 50) return null;
+
+          return {
+            id: `fire_${index}`,
+            type: 'wildfire',
+            title: `Wildfire Detection`,
+            location: `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+            time: new Date().toISOString(),
+            latitude: lat,
+            longitude: lon,
+            brightness: brightness,
+            confidence: confidence,
+            status: 'active',
+            severity: brightness > 350 ? 'severe' : brightness > 320 ? 'moderate' : 'minor',
+            image: null
+          };
+        }).filter(fire => fire !== null);
+
+        allCrisisData = allCrisisData.concat(wildfires);
+      }
+    } catch (wildfireError) {
+      console.error('Error fetching wildfire data:', wildfireError.message);
+    }
+
+    // Fetch flood data from USGS Water Services
+    try {
+      // Get current flood conditions from USGS
+      const floodResponse = await axios.get('https://waterservices.usgs.gov/nwis/iv/', {
+        params: {
+          format: 'json',
+          parameterCd: '00065', // Gage height
+          siteStatus: 'active',
+          hasDataTypeCd: 'iv',
+          modifiedSince: 'PT2H' // Last 2 hours
+        },
+        timeout: 10000
+      });
+
+      if (floodResponse.data && floodResponse.data.value && floodResponse.data.value.timeSeries) {
+        const floodSites = floodResponse.data.value.timeSeries
+          .filter(site => {
+            // Filter for sites with recent high water readings
+            if (!site.values || !site.values[0] || !site.values[0].value) return false;
+            
+            const latestReading = site.values[0].value[site.values[0].value.length - 1];
+            if (!latestReading || !latestReading.value) return false;
+            
+            const waterLevel = parseFloat(latestReading.value);
+            return waterLevel > 10; // Filter for potentially significant water levels
+          })
+          .slice(0, 25) // Limit to 25 flood sites
+          .map((site, index) => {
+            const sourceInfo = site.sourceInfo;
+            const latestValue = site.values[0].value[site.values[0].value.length - 1];
+            const waterLevel = parseFloat(latestValue.value);
+            
+            return {
+              id: `flood_${sourceInfo.siteCode[0].value}`,
+              type: 'flood',
+              title: `High Water Level Alert`,
+              location: sourceInfo.siteName,
+              time: latestValue.dateTime,
+              latitude: parseFloat(sourceInfo.geoLocation.geogLocation.latitude),
+              longitude: parseFloat(sourceInfo.geoLocation.geogLocation.longitude),
+              waterLevel: waterLevel,
+              unit: site.variable.unit.unitCode,
+              status: 'monitoring',
+              severity: waterLevel > 20 ? 'severe' : waterLevel > 15 ? 'moderate' : 'minor',
+              siteCode: sourceInfo.siteCode[0].value,
+              image: null
+            };
+          });
+
+        allCrisisData = allCrisisData.concat(floodSites);
+      }
+    } catch (floodError) {
+      console.error('Error fetching flood data:', floodError.message);
+    }
+
+    // Filter to only include recent and significant incidents
+    const filteredCrisis = allCrisisData.filter(crisis => {
+      const crisisTime = new Date(crisis.time);
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      return crisisTime >= oneDayAgo && (
+        (crisis.type === 'earthquake' && crisis.magnitude >= 3.0) ||
+        (crisis.type === 'wildfire' && crisis.confidence >= 60) ||
+        (crisis.type === 'flood' && crisis.waterLevel >= 10)
+      );
+    });
+
+    // Sort by severity and time
+    filteredCrisis.sort((a, b) => {
+      const severityOrder = { severe: 3, moderate: 2, minor: 1 };
+      const severityDiff = (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
+      if (severityDiff !== 0) return severityDiff;
+      
+      return new Date(b.time) - new Date(a.time);
+    });
+
+    // Cache the result
+    crisisCache.set(filteredCrisis);
+    console.log(`Cached ${filteredCrisis.length} crisis incidents for 30 minutes`);
+    res.set('x-cache-status', 'MISS');
+    res.json(filteredCrisis);
+
+  } catch (error) {
+    console.error('Error fetching crisis data:', error.message);
+    
+    // Cache empty result to prevent repeated failed API calls
+    const emptyResult = [];
+    crisisCache.set(emptyResult);
+    
+    res.status(500).json({ error: 'Failed to fetch crisis data' });
+  }
+});
+
 // Debug endpoint to view all cached news articles
 app.get("/api/news/debug", async function (req, res) {
   try {
