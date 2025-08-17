@@ -144,9 +144,12 @@ L.control.layers(baseMaps).addTo(map);
 
 // Store active notification popups to maintain them during zoom
 const activeNotificationPopups = {};
+// Track zoom state to prevent news reloading during zoom operations
+let isZooming = false;
 
 // Prevent notification popups from closing during map interactions
 map.on('zoomstart', function() {
+  isZooming = true;
   // Store currently open notification popups
   for (let userName in userMarkers) {
     if (userMarkers[userName] && userMarkers[userName].isPopupOpen()) {
@@ -159,6 +162,29 @@ map.on('zoomstart', function() {
       }
     }
   }
+  
+  // Ensure news markers remain visible and stable during zoom
+  Object.values(newsMarkers).forEach(marker => {
+    if (marker) {
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
+      }
+      // Prevent marker from being affected by zoom animations
+      if (marker._icon) {
+        marker._icon.style.transition = 'none';
+      }
+    }
+  });
+});
+
+// Add zoom animation handler to maintain marker stability
+map.on('zoom', function() {
+  // Ensure markers stay attached during zoom animation
+  Object.values(newsMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
 });
 
 map.on('zoomend', function() {
@@ -186,6 +212,18 @@ map.on('zoomend', function() {
   for (let userName in activeNotificationPopups) {
     delete activeNotificationPopups[userName];
   }
+  
+  // Ensure all news markers are properly attached to the map after zoom
+  Object.values(newsMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+  
+  // Reset zoom state after zoom completes with longer delay to ensure stability
+  setTimeout(() => {
+    isZooming = false;
+  }, 500);
 });
 
 const markers = {};
@@ -675,6 +713,10 @@ const recentMessages = [];
 const cyberAttackLines = {};
 // Store cyber attack line timeouts
 const cyberAttackTimeouts = {};
+// Store news markers
+const newsMarkers = {};
+// Store news data
+let newsData = [];
 
 // Function to extract @mentions from a message
 const extractMentions = (message) => {
@@ -757,6 +799,183 @@ const updateMessageHistory = () => {
 // Initialize message history box
 const messageHistoryBox = createMessageHistoryBox();
 
+// Function to load and display news markers
+const loadNewsMarkers = async () => {
+  // Prevent redundant loading if already in progress or during zoom
+  if (isLoadingNews || isZooming) {
+    return;
+  }
+  
+  try {
+    isLoadingNews = true;
+    const response = await fetch('/api/news');
+    const news = await response.json();
+
+    if (Array.isArray(news) && news.length > 0) {
+      newsData = news;
+      displayNewsMarkers();
+      console.log(`Displayed ${Object.keys(newsMarkers).length} news markers`);
+    } else {
+      console.log('No news data received or empty array');
+    }
+  } catch (error) {
+    console.error('Error loading news:', error);
+  } finally {
+    isLoadingNews = false;
+  }
+};
+
+// Function to display news markers on the map
+const displayNewsMarkers = () => {
+  // Prevent any marker manipulation during zoom operations
+  if (isZooming) {
+    return;
+  }
+
+  // Only clear and recreate if we don't have markers or if the data has changed
+  const existingMarkerCount = Object.keys(newsMarkers).length;
+  if (existingMarkerCount > 0 && newsData && existingMarkerCount === newsData.length) {
+    // Markers already exist and count matches data, just ensure they're visible
+    Object.values(newsMarkers).forEach(marker => {
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
+      }
+    });
+    return;
+  }
+
+  // Clear existing news markers from map and tracking object only if we need to recreate
+  Object.values(newsMarkers).forEach(marker => {
+    if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+  
+  // Clear the newsMarkers object
+  for (let key in newsMarkers) {
+    delete newsMarkers[key];
+  }
+
+  if (!newsData || !Array.isArray(newsData)) {
+    console.log('No valid news data to display');
+    return;
+  }
+
+  let successfulGeocode = 0;
+  let failedGeocode = 0;
+
+  newsData.forEach((article, index) => {
+    if (article.location && article.location.latitude && article.location.longitude) {
+      try {
+        successfulGeocode++;
+
+        const newsIcon = L.divIcon({
+          className: 'news-marker',
+          html: '<div class="news-icon">📰</div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+
+        const marker = L.marker([article.location.latitude, article.location.longitude], {
+          icon: newsIcon,
+          zIndexOffset: 1000
+        }).addTo(map);
+
+        // Create popup content
+        const popupContent = createNewsPopupContent(article);
+
+        marker.bindPopup(popupContent, {
+          maxWidth: 175,
+          maxHeight: 200,
+          className: 'news-popup'
+        });
+
+        marker.on('click', () => {
+          marker.openPopup();
+        });
+
+        newsMarkers[`news-${index}`] = marker;
+      } catch (markerError) {
+        console.error('Error creating news marker:', markerError);
+        failedGeocode++;
+      }
+    } else {
+      failedGeocode++;
+    }
+  });
+
+  console.log(`News markers: ${successfulGeocode} displayed, ${failedGeocode} failed`);
+};
+
+// Function to create news popup content
+const createNewsPopupContent = (article) => {
+  const imageHtml = article.image ? 
+    `<img src="${article.image}" alt="News Image" style="width: 100%; max-height: 100px; object-fit: cover; border-radius: 4px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+    '';
+
+  const truncatedDescription = article.description && article.description.length > 200 ? 
+    article.description.substring(0, 200) + '...' : 
+    (article.description || '');
+
+  return `
+    <div class="news-popup-content">
+      ${imageHtml}
+      <h3 style="margin: 0 0 5px 0; font-size: 12px; line-height: 1.2; color: #2c3e50;">
+        ${article.title}
+      </h3>
+      <p style="margin: 0 0 5px 0; font-size: 10px; line-height: 1.3; color: #34495e;">
+        ${truncatedDescription}
+      </p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+        <span style="font-size: 9px; color: #7f8c8d;">
+          ${article.source?.name || 'Unknown Source'}
+        </span>
+        <a href="${article.url}" target="_blank" style="background: #3498db; color: white; padding: 3px 6px; text-decoration: none; border-radius: 3px; font-size: 9px;">
+          Read More
+        </a>
+      </div>
+      ${article.location ? `<div style="margin-top: 4px; font-size: 8px; color: #95a5a6;">📍 ${article.location.name}</div>` : ''}
+    </div>
+  `;
+};
+
+// Function to check for articles that failed geocoding
+const checkFailedArticles = () => {
+  // Silent check - no console logs
+};
+
+// Track if news has been loaded to prevent redundant calls
+let newsLoaded = false;
+let isLoadingNews = false;
+
+// Load news markers when the page loads
+const initializeNews = async () => {
+  if (!newsLoaded && !isLoadingNews) {
+    try {
+      await loadNewsMarkers();
+      newsLoaded = true;
+    } catch (error) {
+      console.error('Failed to initialize news:', error);
+    }
+  }
+};
+
+// Initialize news after a short delay to ensure map is ready
+setTimeout(() => {
+  initializeNews();
+}, 1000);
+
+// Check failed articles after a short delay to ensure API has been called
+setTimeout(checkFailedArticles, 3000);
+
+// Reduce refresh frequency to prevent cache misses - refresh every 2 hours instead of 30 minutes
+setInterval(async () => {
+  // Only reload if not currently zooming and news is already loaded
+  if (!isZooming && newsLoaded && !isLoadingNews) {
+    await loadNewsMarkers();
+  }
+}, 2 * 60 * 60 * 1000);
+
 // Store timeout for message history box highlight
 let messageHistoryHighlightTimeout = null;
 
@@ -798,12 +1017,12 @@ socket.on("receive-location", (data) => {
   if (gender) {
     userGenders[userName] = gender;
   }
-  
+
   // Only center map on current user's location, not other users
   if (userName === window.userName || (!name && id === socket.id)) {
     map.setView([latitude, longitude]);
   }
-  
+
   const [newLat, newLng] = addOffset(latitude, longitude);
 
   // If user already has a marker, just update position and exit
