@@ -1,3 +1,96 @@
+
+/* Crisis marker styles */
+.crisis-marker {
+  border: none !important;
+  background: transparent !important;
+}
+
+.crisis-icon {
+  font-size: 11px;
+  text-align: center;
+  line-height: 15px;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(255,0,0,0.4);
+  transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+}
+
+.crisis-icon:hover {
+  transform: scale(1.3);
+  box-shadow: 0 4px 12px rgba(255,0,0,0.6);
+}
+
+/* Add red glow animation for crisis markers */
+.crisis-marker {
+  animation: crisis-red-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes crisis-red-pulse {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.5)) 
+            drop-shadow(0 0 15px rgba(255, 0, 0, 0.3)) 
+            drop-shadow(0 0 25px rgba(255, 0, 0, 0.1));
+  }
+  100% {
+    filter: drop-shadow(0 0 12px rgba(255, 0, 0, 0.7)) 
+            drop-shadow(0 0 20px rgba(255, 0, 0, 0.5)) 
+            drop-shadow(0 0 30px rgba(255, 0, 0, 0.3));
+  }
+}
+
+/* Crisis popup styles */
+.leaflet-popup.crisis-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid #e74c3c;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.leaflet-popup.crisis-popup .leaflet-popup-content {
+  margin: 10px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.3;
+}
+
+.leaflet-popup.crisis-popup .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #e74c3c;
+}
+
+.crisis-popup-content h3 {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.crisis-popup-content img {
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.crisis-popup-content a {
+  transition: background-color 0.2s ease;
+}
+
+.crisis-popup-content a:hover {
+  background-color: #c0392b !important;
+}
+
+/* Ensure crisis markers don't disappear during zoom transitions */
+.leaflet-zoom-animated .crisis-marker {
+  transition: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+
 body {
   margin: 0;
   font-family: "Roboto", sans-serif;
@@ -117,7 +210,7 @@ header h1 .social { color: white; }
 }
 
 /* Hologram marker styles with 70% opacity (for default markers only) */
-.leaflet-marker-icon:not(.custom-gender-marker) {
+.leaflet-marker-icon:not(.custom-gender-marker):not(.crisis-marker):not(.news-marker) {
   opacity: 0.7 !important;
   filter: drop-shadow(0 0 10px rgba(74, 144, 226, 0.6)) 
           drop-shadow(0 0 20px rgba(74, 144, 226, 0.4)) 
@@ -126,12 +219,30 @@ header h1 .social { color: white; }
   transition: all 0.3s ease;
 }
 
-.leaflet-marker-icon:not(.custom-gender-marker):hover {
+.leaflet-marker-icon:not(.custom-gender-marker):not(.crisis-marker):not(.news-marker):hover {
   opacity: 0.9 !important;
   filter: drop-shadow(0 0 15px rgba(74, 144, 226, 0.8)) 
           drop-shadow(0 0 25px rgba(74, 144, 226, 0.6)) 
           drop-shadow(0 0 35px rgba(74, 144, 226, 0.4));
   transform: scale(1.1);
+}
+
+/* Blue hologram effect specifically for news markers */
+.news-marker {
+  animation: news-blue-pulse 2s ease-in-out infinite alternate !important;
+}
+
+@keyframes news-blue-pulse {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(74, 144, 226, 0.5)) 
+            drop-shadow(0 0 15px rgba(74, 144, 226, 0.3)) 
+            drop-shadow(0 0 25px rgba(74, 144, 226, 0.1));
+  }
+  100% {
+    filter: drop-shadow(0 0 12px rgba(74, 144, 226, 0.7)) 
+            drop-shadow(0 0 20px rgba(74, 144, 226, 0.5)) 
+            drop-shadow(0 0 30px rgba(74, 144, 226, 0.3));
+  }
 }
 
 /* Custom gender marker styles */
@@ -142,6 +253,88 @@ header h1 .social { color: white; }
 
 .custom-gender-marker:hover {
   transform: scale(1.1);
+}
+
+/* News marker styles */
+.news-marker {
+  background: transparent !important;
+  border: none !important;
+  /* Prevent zoom scaling */
+  transform-origin: center center !important;
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* Maintain consistent size across all zoom levels */
+.leaflet-zoom-anim .news-marker {
+  transform: none !important;
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.leaflet-marker-icon.news-marker {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* Ensure news markers don't disappear during zoom transitions */
+.leaflet-zoom-animated .news-marker {
+  transition: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.news-icon {
+  font-size: 12px;
+  text-align: center;
+  line-height: 15px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.news-icon:hover {
+  transform: scale(1.2);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+
+/* News popup styles */
+.leaflet-popup.news-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.leaflet-popup.news-popup .leaflet-popup-content {
+  margin: 8px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.3;
+}
+
+.leaflet-popup.news-popup .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.news-popup-content h3 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.news-popup-content img {
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.news-popup-content a {
+  transition: background-color 0.2s ease;
+}
+
+.news-popup-content a:hover {
+  background-color: #2980b9 !important;
 }
 
 @keyframes hologram-pulse {
@@ -233,19 +426,4 @@ header h1 .social { color: white; }
 
 .leaflet-control-layers-expanded {
   z-index: 1001 !important;
-}
-
-/* Ensure news markers don't disappear during zoom transitions */
-.leaflet-zoom-animated .news-marker {
-  transition: none !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: absolute !important;
-  z-index: 600 !important;
-}
-
-/* Prevent news markers from scaling during zoom */
-.leaflet-zoom-hide .news-marker {
-  visibility: visible !important;
-  opacity: 1 !important;
 }
