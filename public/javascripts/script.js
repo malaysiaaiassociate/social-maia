@@ -175,6 +175,19 @@ map.on('zoomstart', function() {
       }
     }
   });
+
+  // Ensure crisis markers remain visible and stable during zoom
+  Object.values(crisisMarkers).forEach(marker => {
+    if (marker) {
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
+      }
+      // Prevent marker from being affected by zoom animations
+      if (marker._icon) {
+        marker._icon.style.transition = 'none';
+      }
+    }
+  });
 });
 
 // Add zoom animation handler to maintain marker stability
@@ -215,6 +228,13 @@ map.on('zoomend', function() {
   
   // Ensure all news markers are properly attached to the map after zoom
   Object.values(newsMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+
+  // Ensure all crisis markers are properly attached to the map after zoom
+  Object.values(crisisMarkers).forEach(marker => {
     if (marker && !map.hasLayer(marker)) {
       marker.addTo(map);
     }
@@ -717,6 +737,10 @@ const cyberAttackTimeouts = {};
 const newsMarkers = {};
 // Store news data
 let newsData = [];
+// Store crisis markers
+const crisisMarkers = {};
+// Store crisis data
+let crisisData = [];
 
 // Function to extract @mentions from a message
 const extractMentions = (message) => {
@@ -799,6 +823,201 @@ const updateMessageHistory = () => {
 // Initialize message history box
 const messageHistoryBox = createMessageHistoryBox();
 
+// Function to load and display crisis markers
+const loadCrisisMarkers = async () => {
+  // Prevent redundant loading if already in progress or during zoom
+  if (isLoadingCrisis || isZooming) {
+    return;
+  }
+  
+  try {
+    isLoadingCrisis = true;
+    const response = await fetch('/api/crisis');
+    const crisis = await response.json();
+
+    if (Array.isArray(crisis) && crisis.length > 0) {
+      crisisData = crisis;
+      displayCrisisMarkers();
+      console.log(`Displayed ${Object.keys(crisisMarkers).length} crisis markers`);
+    } else {
+      console.log('No crisis data received or empty array');
+    }
+  } catch (error) {
+    console.error('Error loading crisis data:', error);
+  } finally {
+    isLoadingCrisis = false;
+  }
+};
+
+// Function to display crisis markers on the map
+const displayCrisisMarkers = () => {
+  // Prevent any marker manipulation during zoom operations
+  if (isZooming) {
+    return;
+  }
+
+  // Clear existing crisis markers from map and tracking object
+  Object.values(crisisMarkers).forEach(marker => {
+    if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+  
+  // Clear the crisisMarkers object
+  for (let key in crisisMarkers) {
+    delete crisisMarkers[key];
+  }
+
+  if (!crisisData || !Array.isArray(crisisData)) {
+    console.log('No valid crisis data to display');
+    return;
+  }
+
+  let successfulMarkers = 0;
+  let failedMarkers = 0;
+
+  crisisData.forEach((incident, index) => {
+    if (incident.latitude && incident.longitude) {
+      try {
+        successfulMarkers++;
+
+        // Determine crisis icon and color based on type and severity
+        let crisisIcon, crisisColor;
+        
+        if (incident.type === 'earthquake') {
+          crisisIcon = '🌋';
+          crisisColor = incident.severity === 'severe' ? '#ff0000' : 
+                        incident.severity === 'moderate' ? '#ff8800' : '#ffaa00';
+        } else if (incident.type === 'wildfire') {
+          crisisIcon = '🔥';
+          crisisColor = incident.severity === 'severe' ? '#cc0000' : 
+                        incident.severity === 'moderate' ? '#ff6600' : '#ff9900';
+        } else if (incident.type === 'flood') {
+          crisisIcon = '🌊';
+          crisisColor = incident.severity === 'severe' ? '#0066cc' : 
+                        incident.severity === 'moderate' ? '#0088ff' : '#00aaff';
+        } else {
+          crisisIcon = '⚠️';
+          crisisColor = '#ff4444';
+        }
+
+        const crisisIconDiv = L.divIcon({
+          className: 'crisis-marker',
+          html: `<div class="crisis-icon" style="background-color: ${crisisColor};">${crisisIcon}</div>`,
+          iconSize: [15, 15],
+          iconAnchor: [7.5, 7.5]
+        });
+
+        const marker = L.marker([incident.latitude, incident.longitude], {
+          icon: crisisIconDiv,
+          zIndexOffset: 2000
+        }).addTo(map);
+
+        // Create popup content
+        const popupContent = createCrisisPopupContent(incident);
+
+        marker.bindPopup(popupContent, {
+          maxWidth: 175,
+          maxHeight: 200,
+          className: 'crisis-popup'
+        });
+
+        marker.on('click', () => {
+          marker.openPopup();
+        });
+
+        crisisMarkers[`crisis-${index}`] = marker;
+      } catch (markerError) {
+        console.error('Error creating crisis marker:', markerError);
+        failedMarkers++;
+      }
+    } else {
+      failedMarkers++;
+    }
+  });
+
+  console.log(`Crisis markers: ${successfulMarkers} displayed, ${failedMarkers} failed`);
+};
+
+// Function to create crisis popup content
+const createCrisisPopupContent = (incident) => {
+  const imageHtml = incident.image ? 
+    `<img src="${incident.image}" alt="Crisis Image" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; margin-bottom: 8px;" onerror="this.style.display='none'">` : 
+    '';
+
+  const timeAgo = getTimeAgo(new Date(incident.time));
+  
+  let detailsHtml = '';
+  if (incident.type === 'earthquake') {
+    detailsHtml = `
+      <div style="margin: 6px 0; font-size: 11px; color: #555;">
+        <strong>Magnitude:</strong> ${incident.magnitude}<br/>
+        <strong>Depth:</strong> ${incident.depth}km<br/>
+        ${incident.tsunami ? '<span style="color: #ff0000; font-weight: bold;">⚠️ Tsunami Alert</span>' : ''}
+      </div>
+    `;
+  } else if (incident.type === 'wildfire') {
+    detailsHtml = `
+      <div style="margin: 6px 0; font-size: 11px; color: #555;">
+        <strong>Brightness:</strong> ${incident.brightness}K<br/>
+        <strong>Confidence:</strong> ${incident.confidence}%
+      </div>
+    `;
+  } else if (incident.type === 'flood') {
+    detailsHtml = `
+      <div style="margin: 6px 0; font-size: 11px; color: #555;">
+        <strong>Water Level:</strong> ${incident.waterLevel} ${incident.unit}<br/>
+        <strong>Site Code:</strong> ${incident.siteCode}<br/>
+        <span style="color: #0066cc; font-weight: bold;">🌊 Monitoring Active</span>
+      </div>
+    `;
+  }
+
+  const severityBadgeColor = incident.severity === 'severe' ? '#ff0000' : 
+                             incident.severity === 'moderate' ? '#ff8800' : '#ffaa00';
+
+  return `
+    <div class="crisis-popup-content">
+      ${imageHtml}
+      <h3 style="margin: 0 0 6px 0; font-size: 13px; line-height: 1.2; color: #2c3e50;">
+        ${incident.title}
+      </h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="background: ${severityBadgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; font-weight: bold;">
+          ${incident.severity}
+        </span>
+        <span style="font-size: 10px; color: #666;">
+          ${timeAgo}
+        </span>
+      </div>
+      <p style="margin: 0 0 6px 0; font-size: 11px; line-height: 1.3; color: #34495e;">
+        <strong>Location:</strong> ${incident.location}
+      </p>
+      ${detailsHtml}
+      <div style="margin-top: 6px; font-size: 10px; color: #7f8c8d; text-align: center;">
+        Status: <span style="color: ${incident.status === 'active' ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${incident.status}</span>
+      </div>
+      ${incident.url ? `<a href="${incident.url}" target="_blank" style="display: block; background: #e74c3c; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 10px; text-align: center; margin-top: 6px;">More Info</a>` : ''}
+    </div>
+  `;
+};
+
+// Helper function to calculate time ago
+const getTimeAgo = (date) => {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) {
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  } else {
+    return 'Recently';
+  }
+};
+
 // Function to load and display news markers
 const loadNewsMarkers = async () => {
   // Prevent redundant loading if already in progress or during zoom
@@ -872,8 +1091,8 @@ const displayNewsMarkers = () => {
         const newsIcon = L.divIcon({
           className: 'news-marker',
           html: '<div class="news-icon">📰</div>',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+          iconSize: [15, 15],
+          iconAnchor: [7.5, 7.5]
         });
 
         const marker = L.marker([article.location.latitude, article.location.longitude], {
@@ -944,9 +1163,11 @@ const checkFailedArticles = () => {
   // Silent check - no console logs
 };
 
-// Track if news has been loaded to prevent redundant calls
+// Track if news and crisis data have been loaded to prevent redundant calls
 let newsLoaded = false;
 let isLoadingNews = false;
+let crisisLoaded = false;
+let isLoadingCrisis = false;
 
 // Load news markers when the page loads
 const initializeNews = async () => {
@@ -960,9 +1181,22 @@ const initializeNews = async () => {
   }
 };
 
-// Initialize news after a short delay to ensure map is ready
+// Load crisis markers when the page loads
+const initializeCrisis = async () => {
+  if (!crisisLoaded && !isLoadingCrisis) {
+    try {
+      await loadCrisisMarkers();
+      crisisLoaded = true;
+    } catch (error) {
+      console.error('Failed to initialize crisis:', error);
+    }
+  }
+};
+
+// Initialize news and crisis after a short delay to ensure map is ready
 setTimeout(() => {
   initializeNews();
+  initializeCrisis();
 }, 1000);
 
 // Check failed articles after a short delay to ensure API has been called
@@ -975,6 +1209,14 @@ setInterval(async () => {
     await loadNewsMarkers();
   }
 }, 2 * 60 * 60 * 1000);
+
+// Refresh crisis data every 30 minutes (more frequent due to real-time nature)
+setInterval(async () => {
+  // Only reload if not currently zooming and crisis is already loaded
+  if (!isZooming && crisisLoaded && !isLoadingCrisis) {
+    await loadCrisisMarkers();
+  }
+}, 30 * 60 * 1000);
 
 // Store timeout for message history box highlight
 let messageHistoryHighlightTimeout = null;
