@@ -1,0 +1,16 @@
+/* Ensure news markers don't disappear during zoom transitions */
+.leaflet-zoom-animated .news-marker {
+  transition: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  z-index: 600 !important;
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* Prevent news markers from scaling during zoom */
+.leaflet-zoom-hide .news-marker {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
