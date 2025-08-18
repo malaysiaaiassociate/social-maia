@@ -13,6 +13,29 @@ let lastLocationSentTime = 0;
 const MIN_UPDATE_INTERVAL = 2000; // Minimum 2 seconds between updates
 const MIN_DISTANCE_THRESHOLD = 5; // Minimum 5 meters movement to trigger update
 
+// Debounce settings for various operations
+const LOCATION_DEBOUNCE_DELAY = 1000; // 1 second debounce for location updates
+let locationUpdateTimeout = null;
+
+// Debounced location update function
+const debouncedLocationUpdate = (locationData) => {
+  clearTimeout(locationUpdateTimeout);
+  locationUpdateTimeout = setTimeout(() => {
+    if (shouldSendLocationUpdate(locationData)) {
+      console.log(`Sending debounced location: ${locationData.latitude}, ${locationData.longitude}`);
+      socket.emit("send-location", {
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        name: userName,
+        gender: userGender
+      });
+
+      lastSentLocation = { ...locationData };
+      lastLocationSentTime = Date.now();
+    }
+  }, LOCATION_DEBOUNCE_DELAY);
+};
+
 const generateFakeLocation = (actualLat, actualLng) => {
   // Generate random point within 1000 meter radius
   const radiusInDegrees = 2000 / 111320; // Convert 1000 meters to degrees (approximately)
@@ -82,20 +105,8 @@ if (navigator.geolocation) {
         currentLocation = storedFakeLocation;
       }
 
-      // Only send location update if it meets our throttling criteria
-      if (shouldSendLocationUpdate(currentLocation)) {
-        console.log(`Sending location: ${currentLocation.latitude}, ${currentLocation.longitude}`);
-        socket.emit("send-location", {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          name: userName,
-          gender: userGender // Include gender in the emitted data
-        });
-
-        // Update tracking variables
-        lastSentLocation = { ...currentLocation };
-        lastLocationSentTime = Date.now();
-      }
+      // Use debounced location update
+      debouncedLocationUpdate(currentLocation);
     },
     (error) => {
       console.log(error);
@@ -109,7 +120,10 @@ if (navigator.geolocation) {
 }
 
 const map = L.map("map", {
-  attributionControl: false
+  attributionControl: false,
+  minZoom: 2,  // Prevent zooming out beyond world view
+  maxBounds: [[-90, -180], [90, 180]],  // Limit dragging to world boundaries
+  maxBoundsViscosity: 1.0  // Strong resistance when hitting boundaries
 }).setView([0, 0], 16);
 
 // Define different map layers
@@ -146,10 +160,49 @@ L.control.layers(baseMaps).addTo(map);
 const activeNotificationPopups = {};
 // Track zoom state to prevent news reloading during zoom operations
 let isZooming = false;
+let zoomDebounceTimeout = null;
+const ZOOM_DEBOUNCE_DELAY = 300; // 300ms debounce delay
+
+// Debounce function for zoom operations
+const debounceZoom = (func, delay) => {
+  return function(...args) {
+    clearTimeout(zoomDebounceTimeout);
+    zoomDebounceTimeout = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
+// Debounced zoom end handler
+const debouncedZoomEndHandler = debounceZoom(() => {
+  isZooming = false;
+  
+  // Ensure all markers are properly attached after zoom stabilizes
+  Object.values(newsMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+
+  Object.values(crisisMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+
+  Object.values(policeMarkers).forEach(marker => {
+    if (marker && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+}, ZOOM_DEBOUNCE_DELAY);
 
 // Prevent notification popups from closing during map interactions
 map.on('zoomstart', function() {
   isZooming = true;
+  
+  // Clear any existing zoom debounce timeout
+  if (zoomDebounceTimeout) {
+    clearTimeout(zoomDebounceTimeout);
+  }
   // Store currently open notification popups
   for (let userName in userMarkers) {
     if (userMarkers[userName] && userMarkers[userName].isPopupOpen()) {
@@ -239,31 +292,8 @@ map.on('zoomend', function() {
     delete activeNotificationPopups[userName];
   }
   
-  // Ensure all news markers are properly attached to the map after zoom
-  Object.values(newsMarkers).forEach(marker => {
-    if (marker && !map.hasLayer(marker)) {
-      marker.addTo(map);
-    }
-  });
-
-  // Ensure all crisis markers are properly attached to the map after zoom
-  Object.values(crisisMarkers).forEach(marker => {
-    if (marker && !map.hasLayer(marker)) {
-      marker.addTo(map);
-    }
-  });
-
-  // Ensure all police markers are properly attached to the map after zoom
-  Object.values(policeMarkers).forEach(marker => {
-    if (marker && !map.hasLayer(marker)) {
-      marker.addTo(map);
-    }
-  });
-  
-  // Reset zoom state after zoom completes with longer delay to ensure stability
-  setTimeout(() => {
-    isZooming = false;
-  }, 500);
+  // Use debounced handler for zoom end operations
+  debouncedZoomEndHandler();
 });
 
 const markers = {};
@@ -364,19 +394,8 @@ const createNotificationInput = () => {
         currentLocation = storedFakeLocation;
       }
 
-      // Send updated location with throttling when GPS is toggled
-      if (shouldSendLocationUpdate(currentLocation)) {
-        socket.emit("send-location", {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          name: userName,
-          gender: userGender // Include gender in the emitted data
-        });
-
-        // Update tracking variables
-        lastSentLocation = { ...currentLocation };
-        lastLocationSentTime = Date.now();
-      }
+      // Use debounced location update when GPS is toggled
+      debouncedLocationUpdate(currentLocation);
     }
   });
 
@@ -1176,6 +1195,12 @@ const getTimeAgo = (date) => {
     return 'Recently';
   }
 };
+
+// Performance optimization: Request Animation Frame for smooth operations
+const requestAnimFrame = window.requestAnimationFrame || 
+                         window.webkitRequestAnimationFrame || 
+                         window.mozRequestAnimationFrame || 
+                         function(callback) { window.setTimeout(callback, 1000 / 60); };
 
 // Function to load and display news markers
 const loadNewsMarkers = async () => {
