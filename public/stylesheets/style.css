@@ -95,7 +95,7 @@
   background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 2px solid #0066ff;
+  border: none;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -108,7 +108,7 @@
 
 .leaflet-popup.police-popup .leaflet-popup-tip {
   background: rgba(255, 255, 255, 0.95);
-  border: 2px solid #0066ff;
+  border: none;
 }
 
 .police-popup-content h3 {
@@ -136,7 +136,7 @@
   background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 2px solid #e74c3c;
+  border: none;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -149,7 +149,7 @@
 
 .leaflet-popup.crisis-popup .leaflet-popup-tip {
   background: rgba(255, 255, 255, 0.95);
-  border: 2px solid #e74c3c;
+  border: none;
 }
 
 .crisis-popup-content h3 {
@@ -246,7 +246,7 @@ header h1 .social { color: white; }
   background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: none;
 }
 
 .leaflet-popup.chat-popup .leaflet-popup-content {
@@ -257,7 +257,7 @@ header h1 .social { color: white; }
 
 .leaflet-popup.chat-popup .leaflet-popup-tip {
   background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 86, 179, 0.7) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: none;
 }
 
 /* Custom chat popup styles for female users */
@@ -265,7 +265,7 @@ header h1 .social { color: white; }
   background: linear-gradient(135deg, rgba(233, 30, 99, 0.7) 0%, rgba(190, 24, 93, 0.7) 100%);
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: none;
 }
 
 .leaflet-popup.chat-popup-female .leaflet-popup-content {
@@ -276,7 +276,7 @@ header h1 .social { color: white; }
 
 .leaflet-popup.chat-popup-female .leaflet-popup-tip {
   background: linear-gradient(135deg, rgba(233, 30, 99, 0.7) 0%, rgba(190, 24, 93, 0.7) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: none;
 }
 
 /* Enhanced visibility for zoomed-out views */
