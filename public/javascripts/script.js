@@ -144,7 +144,7 @@ const lightLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/
 });
 
 // Set default layer
-lightLayer.addTo(map);
+darkLayer.addTo(map);
 
 // Create layer control
 const baseMaps = {
